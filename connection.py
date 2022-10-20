@@ -5,6 +5,7 @@ from datetime import datetime
 
 
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
+time = datetime.now().strftime('%H:%M')
 
 def dict_factory(cursor, row):
     """
@@ -38,28 +39,22 @@ class DataBase:
 
     # Create Line Result
     def create_today_row(self, line):
+        """Create empty row  for argumnet line and make sure no duplicate rows is exists"""
         conn = sqlite3.connect(self.db)
-        conn.execute(f"""INSERT INTO results ('line_id', 'line_name', 'isp', 'line_using', 'line_number', 'date', 'upload', 'download') 
+        # validating the row existing
+        curs = conn.execute(
+                f"""SELECT * FROM results WHERE line_name = '{line['line_name']}' and date = '{today}'""")
+        rows = curs.fetchall()     
+        if rows:
+            for row in rows:
+                conn.execute(f"DELETE from results where id={row[0]}")
+                conn.commit()
+        conn.execute(f"""INSERT INTO results ('line_id', 'line_name', 'isp', 'line_using', 'line_number', 'date', 'time', 'upload', 'download') 
         VALUES
-        ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '0', '0')""")
+        ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '{time}', '0', '0')""")
         conn.commit()
         conn.close()
-    
-    async def async_create_today_row(self, lines):
-        db = await aiosqlite.connect(self.db)
-        for line in lines:
-            
-        try:
-            cursor = await db.execute(
-                f"""SELECT * FROM results WHERE line_name = '{line_name}' where date = '{today}'""")
-            row = await cursor.fetchone()
-            await cursor.close()
-            await db.close()
-            return (row[0])
-        except:
-            pass
-
-
+         
     def get_row_id(self, line_name):
         conn = sqlite3.connect(self.db)
         curs = conn.cursor()
@@ -100,21 +95,23 @@ class DataBase:
             pass
 
     # add process results to row
-    async def add_results_to_today_row(self, row_id, result):
+    async def add_result_to_today_line_row(self, line, result):
         db = await aiosqlite.connect(self.db)
         try:
             await db.execute(
-                f"""Update results SET {result} WHERE id='{row_id}'"""
+                f"""Update results SET {result} WHERE line_name='{line['line_name']}'"""
                 )
             await db.commit()
             await db.close()
         except Exception as ex:
+            print('here')
             print(ex)
     
     def get_last_result_dict(self, lines):
         """
         Get lines rows in a dictioneries format
         {'line_id': x, 'line_name': y}
+        and return a list of the values
         """
         conn = sqlite3.connect(self.db)
 
@@ -123,12 +120,12 @@ class DataBase:
             rows: list = [] 
             for line in lines:
                 curs = conn.cursor()
-                curs.execute(f"SELECT * FROM results where line_name = '{line['line_name']}' and date= '{today}' ORDER BY id Desc")
+                curs.execute(f"SELECT * FROM results where line_name = '{line['line_name']}' and date= '{today}'")
                 row = curs.fetchone()
                 rows.append(row)
             return rows
 
-    def get_today_results(self, line_name= None):
+    def get_today_result(self, line_name= None):
         db = sqlite3.connect(self.db)
         try:
             db.row_factory = dict_factory

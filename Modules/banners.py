@@ -31,11 +31,12 @@ def print_results(line, quota, st) -> None:
 console = Console()
 
 def print_st_table(lines) -> None:
+    print('\n')
     table = Table(title=f"Speedtest Result")
     table.add_column("Line Name", justify="center", style="cyan", no_wrap=True)
-    table.add_column("Upload", justify="center", style="cyan", no_wrap=True)
-    table.add_column("Download", justify="center", style="cyan")
+    table.add_column("Download", justify="center", style="cyan", no_wrap=True)
+    table.add_column("Upload", justify="center", style="cyan")
     for line in lines:
-        table.add_row(str(line['line_name']), str(line['upload']), str(line['download']))
+        table.add_row(str(line['line_name']), str(line['download']), str(line['upload']))
     console.print(table)
     sleep(.2)

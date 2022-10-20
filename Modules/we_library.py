@@ -8,8 +8,8 @@ import asyncio
 import urllib3
 import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
+time = datetime.now().strftime('%H:%M')
 
 class MYWEBaseClass():
     succeed: list = []
@@ -95,8 +95,9 @@ class MYWEBaseClass():
         except:
             used = ''
         finally:
-                await self.DB.add_results_to_today_row(self.row_id, (f"""used='{used}'"""))
-                return used
+            result = f"used='{used}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
+            return used
 
     @property
     async def _remaining(self):
@@ -106,7 +107,8 @@ class MYWEBaseClass():
         except:
             remaining = ''
         finally:
-            await self.DB.add_results_to_today_row(self.row_id, (f"""remaining='{remaining}'"""))
+            result = f"remaining='{remaining}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
             return remaining
 
     @property
@@ -117,7 +119,8 @@ class MYWEBaseClass():
         except:
             balance = ''
         finally:
-            await self.DB.add_results_to_today_row(self.row_id, (f"""balance='{balance}'"""))
+            result = f"balance='{balance}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
             return balance
 
     @property
@@ -131,7 +134,8 @@ class MYWEBaseClass():
         except:
             renew_date = ''
         finally:
-            await self.DB.add_results_to_today_row(self.row_id, (f"""renew_date='{renew_date}'"""))
+            result = f"renew_date='{renew_date}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
             return renew_date
 
     @property
@@ -141,7 +145,8 @@ class MYWEBaseClass():
         except:
             used_percentage = ""
         finally:
-            await self.DB.add_results_to_today_row(self.row_id, (f"""used_percentage='{used_percentage}'"""))
+            result = f"used_percentage='{used_percentage}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
             return used_percentage
     
     @property
@@ -156,8 +161,7 @@ class MYWEBaseClass():
                 return last_used 
             else:
                 last_used = await self.DB.get_old_value(self.line, 'used', 2)
-                return last_used 
-
+                return last_used
 
     @property
     async def _consumed(self):
@@ -175,7 +179,8 @@ class MYWEBaseClass():
         except Exception as ex:
             print(ex)
         finally:
-            await self.DB.add_results_to_today_row(self.row_id, (f"""consumed='{consumed}'"""))
+            result = f"consumed='{consumed}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
             return consumed
 
     @property
@@ -204,7 +209,8 @@ class MYWEBaseClass():
             print(ex)
             credit_transaction = ''
         finally:
-            await self.DB.add_results_to_today_row(self.row_id, (f"""credit_transaction='{credit_transaction}'"""))
+            result = f"credit_transaction='{credit_transaction}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
             return credit_transaction
 
     @property
@@ -220,20 +226,6 @@ class MYWEBaseClass():
                renew_status =  "Automatic"
             if last_renew_date != today:
                 renew_status =  "Manual"
-            await self.DB.add_results_to_today_row(self.row_id, (f"""renew_status='{renew_status}'"""))
+            result = f"renew_status='{renew_status}'"
+            await self.DB.add_result_to_today_line_row(self.line, result)
             return renew_status
-
-
-async def start_mywe(progress, DB, lines, best_line)-> None:
-    MyWE = MYWEBaseClass()
-    
-    os.system(rf"""netsh interface ipv4 set address name=Ethernet static {best_line[0]}""")  # Change to Best IP
-
-    for line in lines:  
-        await MyWE.start(progress, line, DB)
-
-    if MyWE.faild:
-        # Change to Best IP
-        os.system(rf"""netsh interface ipv4 set address name=Ethernet static {best_line[1]}""")  # Change to Best IP
-        for line in MyWE.faild:
-            await MyWE.start(progress, line, DB)
