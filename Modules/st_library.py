@@ -104,8 +104,7 @@ def st_start(lines, DB, cc)-> None:
             asyncio.run(main())
             sleep(1)
 
-    lines_result = DB.get_last_result_dict(lines)
+    lines_result = DB.get_today_results(lines)
     print_st_table(lines_result)
-    return lines_result
 
 

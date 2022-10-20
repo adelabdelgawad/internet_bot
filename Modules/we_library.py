@@ -31,10 +31,8 @@ class MYWEBaseClass():
     async def start(self, progress, line, DB):
         self.progress = progress
         self.pt = progress.add_task(f"[red]{line['line_name']} WE Scraping Progress.....", total=4)
-
         self.DB = DB
         self.line = line
-        self.row_id = self.DB.get_row_id(self.line['line_name'])
 
         """ Beginning of the web coding"""
         self.browser = await self._driver   # (Property Method)
@@ -155,17 +153,12 @@ class MYWEBaseClass():
         last_used = await self.DB.get_old_value(self.line, 'used', 1)
         if last_used:
             return last_used
-        else:
-            last_used = await self.DB.get_old_value(self.line, 'used', 2)  
-            if last_used:
-                return last_used 
-            else:
-                last_used = await self.DB.get_old_value(self.line, 'used', 2)
-                return last_used
+        last_used = await self.DB.get_old_value(self.line, 'used', 2)
+        if last_used:
+            return last_used
 
     @property
     async def _consumed(self):
-        print(f'last_used is: {self.last_used}')
         # Creating Consumed
         consumed : str = ''
         try: 

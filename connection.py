@@ -23,9 +23,9 @@ class DataBase:
         self.db = db
         self.conn = sqlite3.connect(self.db)
 
-    def get_table_as_dict(self, table_name):
+    def get_table(self, table_name):
         """
-        Get lines rows in a dictioneries format
+        Get table rows in a dictioneries format
         {'line_id': x, 'line_name': y}
         """
         conn = sqlite3.connect(self.db)
@@ -54,67 +54,41 @@ class DataBase:
         ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '{time}', '0', '0')""")
         conn.commit()
         conn.close()
-         
-    def get_row_id(self, line_name):
-        conn = sqlite3.connect(self.db)
-        curs = conn.cursor()
-        try:
-            res = curs.execute(f"""SELECT * FROM results WHERE line_name = '{line_name}' ORDER BY ID DESC LIMIT 11""")
-            res = res.fetchone()
-            conn.commit()
-            conn.close()
-            return (res[0])
-        except:
-            conn.close()
-            return
-
-    async def async_get_row_id(self, line_name):
-        db = await aiosqlite.connect(self.db)
-        try:
-            cursor = await db.execute(
-                f"""SELECT * FROM results WHERE line_name = '{line_name}' where date = '{today}'""")
-            row = await cursor.fetchone()
-            await cursor.close()
-            await db.close()
-            return (row[0])
-        except:
-            pass
 
     # Retreive Old data from table by day
     async def get_old_value(self, line, target, days):
         day = datetime.strftime(datetime.now() - timedelta(days), '%d-%m-%Y')
+        print(line)
         db = await aiosqlite.connect(self.db)
         try:
             cursor = await db.execute(
-                f"""SELECT {target} FROM results WHERE line_name="{line['line_name']}" AND date='{day}' ORDER BY id ASC LIMIT 1""")
+                f"""SELECT {target} FROM results WHERE line_id="{line['line_id']}" AND date='{day}' ORDER BY id ASC LIMIT 1""")
             row = await cursor.fetchone()
             await cursor.close()
             await db.close()
             return (row[0])
-        except:
-            pass
+        except Exception as ex:
+            print
 
     # add process results to row
     async def add_result_to_today_line_row(self, line, result):
         db = await aiosqlite.connect(self.db)
         try:
             await db.execute(
-                f"""Update results SET {result} WHERE line_name='{line['line_name']}'"""
+                f"""Update results SET {result} WHERE line_name='{line['line_name']}' and date = '{today}'"""
                 )
             await db.commit()
             await db.close()
         except Exception as ex:
-            print('here')
             print(ex)
     
-    def get_last_result_dict(self, lines):
+    def get_today_results(self, lines):
         """
         Get lines rows in a dictioneries format
         {'line_id': x, 'line_name': y}
         and return a list of the values
         """
         conn = sqlite3.connect(self.db)
-
         with conn:
             conn.row_factory = dict_factory
             rows: list = [] 
@@ -124,37 +98,6 @@ class DataBase:
                 row = curs.fetchone()
                 rows.append(row)
             return rows
-
-    def get_today_result(self, line_name= None):
-        db = sqlite3.connect(self.db)
-        try:
-            db.row_factory = dict_factory
-            if line_name:
-                cursor = db.execute(
-                    f"""SELECT * FROM results
-                    WHERE line_name={line_name}
-                    and date = '{today}'
-                    ORDER BY id ASC"""
-                    )
-            else:
-                cursor = db.execute(
-                    f"""SELECT * FROM results WHERE date = '{today}'"""
-                    )
-            rows = cursor.fetchall()
-            cursor.close()
-            db.close()
-            print(rows)
-            return (rows)
-        except Exception as ex:
-            print(ex)
-            
-    def get_table(self, table_name):
-        conn = sqlite3.connect(self.db)
-        res = conn.execute(f"""SELECT * FROM {table_name}""")
-        res = res.fetchall()
-        conn.commit()
-        conn.close()
-        return (res)
  
 
     
