@@ -3,12 +3,15 @@ import aiosqlite
 import asyncio
 from datetime import timedelta
 from datetime import datetime
-
-
+"""
+The DataBase Manipulation Module
+Uses SQLite Standard Module
+and AIOSQLITE ASYNCIO Model Modules
+"""
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
 time = datetime.now().strftime('%H:%M')
 
-def dict_factory(cursor, row):
+def dict_factory(cursor: str, row: int) -> dict:
     """
     Convert cursor to dic
     Key = table descrition
@@ -20,51 +23,70 @@ def dict_factory(cursor, row):
     return d
 
 class DataBase:
-    def __init__(self, db):
+    """"
+    DataBase Class: Takes a DatabaseName and Do Numerial Methods
+        * get_table: Get Who Table Information
+        * create_today_row: Create an Empty Row with a today Date
+        * get_old_value: Get an old Value to use in in the coloring and consuimg Process
+    """
+    def __init__(self, db) -> None:
+
+        self.db = db
         self._sqlite = sqlite3.connect(db)
         self._aiosqlite = aiosqlite.connect(db)
 
-    def get_table(self, table_name):
+    def get_table(self, table_name: str) -> dict:
         """
-        Get table rows in a dictioneries format
-        column descroption = column value
+        :prameter:
+            table_name: str -> Table Rows in a dictioneries format
+                                column description = column value
         """
         with self._sqlite as conn:
             conn.row_factory = dict_factory
             return conn.execute(f"SELECT * FROM {table_name}").fetchall()
 
-    # Create Line Result
-    def create_today_row(self, line):
+    def create_today_row(self, line: dict) -> None:
         """
         Search for today line row
         Delete it if found
         Create today empty row
         """
-        with self._sqlite as conn:  # validating the row existing
+        with self._sqlite as conn:
             rows = conn.execute(
                 f"""SELECT * FROM results WHERE line_name = '{line['line_name']}' and date = '{today}'""").fetchall()
-            if rows:
+            if rows:    # Deleted founded row
                 for row in rows:
                     conn.execute(f"DELETE from results where id={row['id']}")
-            conn.execute(f"""INSERT INTO results ('line_id', 'line_name', 'isp', 'line_using', 'line_number', 'date', 'time', 'upload', 'download') 
+            conn.execute(f"""INSERT INTO results ('line_id', 'line_name', 'isp', 'line_using', 'line_number', 'date', 'time') 
             VALUES
-            ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '{time}', '0', '0')""")
+            ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '{time}')""")
 
-    # Retreive Old data from table by day
-    async def get_old_value(self, line, target):
-        async with self._aiosqlite as db:
-            day = datetime.strftime(datetime.now() - timedelta(1), '%d-%m-%Y')
+    async def get_old_value(self, line: dict, target: str) -> str:
+        """
+        ASYNCIO Model Method, Retreive a Specefic value for the results table
+        :prameters:
+            Line: dict -> a Dict value to get the Line Name
+            Target: str -> The Desired Value Argument
+        """
+        day = datetime.strftime(datetime.now() - timedelta(1), '%d-%m-%Y')
+        async with aiosqlite.connect(self.db) as db:
             db.row_factory = aiosqlite.Row
-            async with db.execute(f"""SELECT {target} FROM results WHERE line_name='{line}' AND date='{day}' ORDER BY id ASC LIMIT 1""") as cursor:
+            async with db.execute(f"""SELECT {target} FROM results WHERE line_name='{line['line_name']}' AND date='{day}'""") as cursor:
                 async for row in cursor:
-                    return row[target]
-            
-    # add process results to row
-    async def add_result_to_today_line_row(self, line, result):
-        async with self._aiosqlite as db:
-            await db.execute(f"""Update results SET {result} WHERE line_name='{line['line_name']}' and date = '{today}'""")
+                    return row[f'{target}']
 
-    def get_today_results(self, lines):
+    async def add_result_to_today_line_row(self, line: str, result: str) -> None:
+        """
+        ASYNCIO Model Method, Update a Specefic value in the results table
+        :prameters:
+            Line: dict -> a Dict value to get the Line Name
+            result: str -> The Desired Result to Update
+        """
+        async with aiosqlite.connect(self.db) as db:
+            await db.execute(f"""Update results SET {result} WHERE line_name='{line['line_name']}' and date = '{today}'""")
+            await db.commit()
+
+    def get_today_results(self, lines: dict) -> None:
         """
         Get lines rows in a dictioneries format
         {'line_id': x, 'line_name': y}
