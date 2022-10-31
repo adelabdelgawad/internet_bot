@@ -1,13 +1,18 @@
+from time import sleep
+import os
+from typing import Optional
+from rich.progress import TaskID
 import Modules.st as Speedtest
 from Modules.we import MYWEBaseClass
-import Modules.we
-from Modules.email import EmailCreator
-from Modules.email import EmailSender
-from Modules.progress import Progress
+from rich.live import Live
+from Modules.shells import Shell
+from Modules.progress import rich_console
+from Modules.progress import Proc
+from Modules.progress import RichOverall
+from Modules.progress import SubProc
 import connection
+from rich.console import Console
 import asyncio
-import os
-from time import sleep
 
 """
 A simple Python program Made to Automate the Speedtest and Quota Scraping
@@ -22,24 +27,10 @@ The Code is East Follow and Easy Manipulation
 The Code Made and tested on a Python 3.10
 """
 
-
-DB = connection.DataBase("data.db")
-Email = EmailCreator()
+DB = connection.DataBase("data.sqlite3")
 MyWE = MYWEBaseClass()
 
-def send_email() -> None:
-    """
-    Function Sequence:
-        - Receipients: List ->  email to lists of receipients list
-        - EmailSettings: List -> Using the Email Settings table in the DataBase
-        - Tables: List -> Resultes of converted Lines in Table Format    
-    """
-    receipients = [line['email'] for line in DB.get_table('email_receipients')]
-    email_settings: list = DB.get_table('settings')[0]
-    tables: list = " ".join(EmailCreator.result_formated)
-
-    # Sending Email for Loop in Receipients List
-    [EmailSender.send(email_settings, recipient, tables) for recipient in receipients]
+main_console = Console()
 
 def _start_quota_check(lines: list):
     """
@@ -49,56 +40,72 @@ def _start_quota_check(lines: list):
     Argumentes:
         - Lines: list -> Each line is in Dic Format
     """
-    with Progress(transient=True) as progress:  # Start Daily Interline QutaCheck
-        [asyncio.run(MyWE.start(progress, line, DB)) for line in lines ]
+    [asyncio.run(MyWE.start(line, DB)) for line in lines ]
 
-def get_best_line_and_change_nic_ip(lines: list, results: list, index: int):
-    """
-    Convert The NEtwork Interface Card to the best IPAdress
-    The IPAdress Determined Based on Ping Result of SpeedTest
 
-    :parameters:
-        - Lines: list -> Each line is in Dic Format
-        - Results: List -> Is the Result of speedtest Process
-        - index: int -> is the sequence of the line index after sorted by Ping
-    """
-    # Sorting the list by Ping
-    lines_sorted: list = sorted(results, key=lambda d: float(d['ping']), reverse=True)  # Sort lines by Download
-    
+def _db_subproc(proc_pb: TaskID, db_table_name: str) -> list:
+    _subproc_label = SubProc.create_label("importing lines information")
+    result: list = DB.get_table(db_table_name)
+    SubProc.finish_label(_subproc_label)
+    Proc.advance_pb(proc_pb)
+    return result
+        
+def _import_database_rows():
+        _db_proc_lbl = Proc.create_label("[1] Import DataBase Tables")
+        _db_pb = Proc.create_pb(4)
+
+        lines: list = _db_subproc(_db_pb, "lines")
+        [DB.create_today_row(line) for line in lines]  # Task
+
+        settings: list = _db_subproc(_db_pb, 'settings')[0]
+        cc: int = settings['concurrency_count']  # Uses in SpeedTest
+        indicators: list = _db_subproc(_db_pb, 'indicators_limit')[0]
+        email_receipients: list = _db_subproc(_db_pb, 'email_receipients')[0]
+
+        # End the Progress Task
+        SubProc.hide_labels()
+        Proc.finish(_db_pb, _db_proc_lbl)
+
+        return lines, settings, cc, indicators, email_receipients
+
+def _change_to_bestline(lines):
+    st_results = DB.get_today_results(lines)
+    lines_sorted: list = sorted(st_results, key=lambda d: float(d['ping']))  # Sort lines by Ping
     # Loop in the lines list to get the line information and change the IPAddress
     for line in lines:
-        if line['line_id'] == lines_sorted[index]['line_id']:
-            os.system(
-            rf"""netsh interface ipv4 set address name=Ethernet static {line['ip_address']} {line['subnet_mask']} {line['gateway']}"""
-            )
-            print(f"Changing IP To: {line['ip_address']} {line['subnet_mask']} {line['gateway']}")
-            sleep(5)
-            
+        if line['line_id'] == lines_sorted[0]['line_id']:
+            asyncio.run(Shell.change_nic_ip(line))
+
+
 if __name__ == "__main__":
-    """Init the Lists from The DB"""
-    lines: list = DB.get_table('lines')  # Get Lines
-    settings: list = DB.get_table('settings')[0]    # Get Settings List
-    indicators: list = DB.get_table('indicators_limit')[0]    # Get Settings List
-    email_receipients: list = DB.get_table('email_receipients')[0]  # Get Email Receivers
-    cc = settings['concurrency_count']  # Uses in SpeedTest
+    os.system("cls")
+    print("")
+
+    with Live(rich_console, refresh_per_second=30, vertical_overflow="visible") as live:
+        RichOverall.construct_rows() # Call The Progress Rows
+        print = live.console.print
+        console = live.console
+
+        overall_pb = RichOverall.create_pb("[red]Daily InternetCheck Speed and Quota...", 4)
+        lines, settings, cc, indicators, email_receipients = _import_database_rows()
+        RichOverall.advance(overall_pb)
+
+        _st_proc_lbl = Proc.create_label("[2] Analysis Internet Speed Tests")
+        Speedtest.st_start(lines, cc, DB) # Start Speedtest in Asyncio approach
+        RichOverall.advance(overall_pb)
+
+        # Change IP to Best Ping Latency Line
+        _change_to_bestline(lines)
+        
+    # #     # # Change The IP Address after speed test Based on Ping results
 
 
-    """Begging of the Process"""
-    list(map(DB.create_today_row, lines))   # Create Empty Row for all lines
-
-    Speedtest.st_start(lines, DB, cc)# Start Daily Speedtest
-
-    # Change The IP Address after speed test Based on Ping results
-    st_results = DB.get_today_results(lines)
-    get_best_line_and_change_nic_ip(lines, st_results, 0)
-
-    # Start Quota Check
-    _start_quota_check(lines)
-    if MyWE.faild:
-        get_best_line_and_change_nic_ip(lines, st_results, 1)
-        _start_quota_check(MyWE.faild)
-    
-    lines_result = DB.get_today_results(lines)
-    Email.convert_line_to_html(lines_result, indicators)
-    send_email()  # Send E-Email
-
+    #     # # Start Quota Check
+    #     # _start_quota_check(lines)
+    #     # if MyWE.faild:
+    #     #     get_best_line_and_change_nic_ip(lines, st_results, 1)
+    #     #     _start_quota_check(MyWE.faild)
+        
+    #     # lines_result = DB.get_today_results(lines)
+    #     # Email.convert_line_to_html(lines_result, indicators)
+    #     # send_email()  # Send E-Email

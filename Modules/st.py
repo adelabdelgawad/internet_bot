@@ -1,84 +1,60 @@
 import asyncio
-import re
-import os
-import sys
-from .banners import print_st_table
-from .progress import Progress
-from time import sleep
+from aiotestspeed.aio import Speedtest
+from rich import print
+from .progress import TaskPB
+from .progress import SubProc
+from .shells import Shell
 
+async def _start_aiotestspeed(DB, line):
+    TASK = TaskPB.create(f"{line['ip_address']} Speedtest", 3)
 
-def _change_nic_ip(ip):
-    print(f"Changing Ethernet: {ip['ip_address']} {ip['subnet_mask']} {ip['gateway']}")
-    os.system(rf"""netsh interface ipv4 set address name=Ethernet static {ip['ip_address']} {ip['subnet_mask']} {ip['gateway']}""")
-    sleep(2)
-
-def _add_second_ip(ips):
-    for ip in ips:
-        print(f"Adding Secondery IP: {ip['ip_address']} {ip['subnet_mask']}")
-        os.system(rf"""netsh interface ipv4 add address name=Ethernet {ip['ip_address']} {ip['subnet_mask']}""")
-        sleep(.5)
-    
-async def _start_subprocess_shell(DB, line, cmd, progress, pb):
-    """
-    Create the subprocess; redirect the standard output
-    into a pipe
-    """
-    # Default Values in case no captured
-    ping = ''
-    download = ''
-    upload = ''
-
-    # Sets to Containt Values
-    downloads: set = set()
-    uploads: set = set()
-    pings: set = set()
-
+    ping, download, upload = 0, 0, 0  # Default Values in case no captured
+    downloads, uploads, pings = set(), set(), set()  # Sets to Containt Values
     # Start of the Process
     for _ in range(3):
-        proc = await asyncio.create_subprocess_shell(
-        cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
-
-        stdout, stderr = await proc.communicate()
-        if stdout:
-            results = stdout.decode().split(',')
-            ping = int(float(results[5]))
-            download = round(float(results[6]) / 1000 / 1000, 1)
-            upload = round(float(results[7]) / 1000 / 1000, 1)
-            print(f"{line['line_name']}: {ping}, {download}, {upload}")
-        if stderr:
-            print(f"[stderr] Error in: {line['ip_address']}, {stdout.decode()}")
-        pings.add(ping)
-        downloads.add(download)
-        uploads.add(upload)
-        progress.update(pb, advance=1)
+        try:
+            cmd = f"python speedtest.py --csv --secure --source {line['ip_address']}"
+            stdout, stderr = await Shell.run(cmd)
+            if stdout:
+                results = stdout.decode().split(',')
+                ping = int(float(results[5]))
+                download = round(float(results[6]) / 1000 / 1000, 1)
+                upload = round(float(results[7]) / 1000 / 1000, 1)
+                print(f"{line['line_name']}: {ping}, {download}, {upload}")
+            if stderr:
+                print(f"{line['ip_address']}:  {stderr.decode()}")
+        except Exception as ex:
+            print(f"{line['ip_address']}: {ex}")
+        finally:
+            pings.add(ping)
+            downloads.add(download)
+            uploads.add(upload)
+            TaskPB.advance(TASK)
 
     result = f"ping='{max(pings)}', upload='{max(uploads)}', download='{max(downloads)}'"
     await DB.add_result_to_today_line_row(line, result)
 
+async def _modifing_address(primary_ip, chuck_line):
+    # Changing Primary IP Address
+    CHANGING_LABEL = SubProc.create_label("Modifying IP Addresses")
+    await Shell.change_nic_ip(primary_ip)
+    await asyncio.sleep(3)
+    [await Shell.add_second_ip(line) for line in chuck_line]
+    await asyncio.sleep(2)
+    SubProc.finish_label(CHANGING_LABEL)
 
-def st_start(lines, DB, cc)-> None:
+async def _executing_st(DB, cloned_lines):
+    await asyncio.sleep(.5)
+    tasks: list = [_start_aiotestspeed(DB, line) for line in cloned_lines]
+    await asyncio.gather(*tasks)
+
+def st_start(lines, cc,  DB)-> None:
+    # Executing Speedtest
     chuck_lines = [lines[i:i +cc] for i in range (0, len(lines), cc)]
     for chuck_line in chuck_lines:
-        with Progress(transient=True) as progress:
-            cloned_lines = chuck_line.copy()
-            primary_ip = chuck_line.pop()
-
-            _change_nic_ip(primary_ip)
-            _add_second_ip(chuck_line)
-            sleep(3)
-
-            async def main():
-                tasks: list = []
-                for line in cloned_lines:
-                    pb = progress.add_task(f"[red]{line['line_name']} Speedtest Progress...", total=3)
-                    cmd = f"python speedtest.py --csv --secure --source {line['ip_address']}"
-                    tasks.append(_start_subprocess_shell(DB, line, cmd, progress, pb))
-                await asyncio.gather(*tasks)
-            asyncio.run(main())
-            sleep(1)
-
-    lines_result = DB.get_today_results(lines)
-    print_st_table(lines_result)
+        cloned_lines = chuck_line.copy()
+        primary_ip = chuck_line.pop()
+        asyncio.run(_modifing_address(primary_ip, chuck_line))
+        asyncio.run(_executing_st(DB, cloned_lines))
+        
 

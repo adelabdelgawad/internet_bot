@@ -85,6 +85,7 @@ class DataBase:
         async with aiosqlite.connect(self.db) as db:
             await db.execute(f"""Update results SET {result} WHERE line_name='{line['line_name']}' and date = '{today}'""")
             await db.commit()
+            await asyncio.sleep(.1)
 
     def get_today_results(self, lines: dict) -> None:
         """
