@@ -1,6 +1,7 @@
 import asyncio
 from rich import print
 from .progress import SubProc
+from .connection import SQLiteDB
 
 
 class Shell:
@@ -14,8 +15,7 @@ class Shell:
             return await proc.communicate()  # Start the Execution
         except Exception as ex:
             print(ex)
-    
-    
+
     @classmethod
     async def change_nic_ip(cls, line: dict) -> None: 
         stdout, stderr = await Shell.run(
@@ -43,3 +43,12 @@ class Shell:
                 print(f"[green] IP Address :{line['ip_address']} {line['subnet_mask']} Added Succefully")
         if stderr:
             print(stderr)
+
+    @classmethod
+    def change_to_bestline(lines):
+        st_results = SQLiteDB.get_today_results(lines)
+        lines_sorted: list = sorted(st_results, key=lambda d: float(d['ping']))  # Sort lines by Ping
+        # Loop in the lines list to get the line information and change the IPAddress
+        for line in lines:
+            if line['line_id'] == lines_sorted[0]['line_id']:
+                asyncio.run(Shell.change_nic_ip(line))
