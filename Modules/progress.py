@@ -1,6 +1,7 @@
 from rich.table import Table
 import time
-
+from rich.console import Group
+from rich.panel import Panel
 from rich.progress import Progress
 from rich.progress import BarColumn
 from rich.progress import TextColumn
@@ -13,7 +14,6 @@ from rich.progress import TaskID
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
-
 
 class TaskProgressBar(Progress):
     @classmethod
@@ -89,7 +89,9 @@ class TaskPB():
     
     @classmethod
     def finish(cls, task_id: TaskID):
-        [Task.update(task_id=task_id, completed=True, visible=False) for task_id in Task]
+        Task.update(task_id=task_id, completed=True, visible=False)
+
+
 
 class Rich():
     def __init__(
@@ -138,9 +140,19 @@ ProgressLabel = TaskProgressLabel()  # SubProcess Label Instance
 Proc = Rich(ProcPB, ProcLabel)
 SubProc = Rich(SubProcPB, SubProcLabel, True)
 
-rich_console = Table(show_header=False, show_edge=False)
-table = Table() # Logs Table
+IPAddressTable = Table() # Logs Table
+SpeedtestTable = Table() # Logs Table
 
-progress_rows: list= [
-    ProcLabel, SubProcLabel, SubProcPB, ProcPB, Task, OverAllProgress
-]
+ProgressGroup = Group(
+    IPAddressTable,
+    SpeedtestTable,
+    Panel(Group(ProcLabel, SubProcLabel, SubProcPB, ProcPB, Task)),
+    OverAllProgress,
+)
+
+#  = Table(show_header=False, show_edge=False)
+# 
+
+# progress_rows: list= [
+#     ProcLabel, SubProcLabel, SubProcPB, ProcPB, Task, OverAllProgress
+# ]
