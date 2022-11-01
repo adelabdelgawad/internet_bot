@@ -9,7 +9,7 @@ else:
 from Modules.we import MYWEBaseClass
 from rich.live import Live
 from Modules.shells import Shell
-from Modules.progress import rich_console
+from Modules.progress import ProgressGroup
 from Modules.progress import Proc
 from Modules.progress import RichOverall
 from Modules.progress import SubProc
@@ -50,7 +50,8 @@ def _db_subproc(proc_pb: TaskID, db_table_name: str) -> list:
     SubProc.finish_label(_subproc_label)
     Proc.advance_pb(proc_pb)
     return result
-        
+
+
 def _import_database_rows():
         _db_proc_lbl = Proc.create_label("[1] Import DataBase Tables")
         _db_pb = Proc.create_pb(4)
@@ -75,10 +76,8 @@ if __name__ == "__main__":
         os.system("cls")
     print("")
 
-    with Live(rich_console, refresh_per_second=30, vertical_overflow="visible") as live:
-        RichOverall.construct_rows() # Call The Progress Rows
+    with Live(ProgressGroup, refresh_per_second=30, vertical_overflow="visible", transient=True) as live:
         print = live.console.print
-        console = live.console
 
         overall_pb = RichOverall.create_pb("[red]Daily InternetCheck Speed and Quota...", 4)
         lines, settings, cc, indicators, email_receipients = _import_database_rows()

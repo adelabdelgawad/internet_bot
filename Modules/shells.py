@@ -1,6 +1,7 @@
 import asyncio
 from rich import print
 from .progress import SubProc
+from .progress import IPAddressTable
 from .connection import SQLiteDB
 
 
@@ -17,18 +18,26 @@ class Shell:
             print(ex)
 
     @classmethod
-    async def change_nic_ip(cls, line: dict) -> None: 
+    async def change_nic_ip(cls, line: dict) -> None:
         stdout, stderr = await Shell.run(
             rf"netsh interface ipv4 set address name=Ethernet static {line['ip_address']} {line['subnet_mask']} {line['gateway']}"
         )
         await asyncio.sleep(3)
+        
+        IPAddressTable.add_column("Task Type")
+        IPAddressTable.add_column("IP Address")
+        IPAddressTable.add_column("Result")
+
         if stdout:
             if 'The requested operation requires elevation (Run as administrator)' in stdout.decode():
-                print(f"[red] {line['ip_address']} {line['subnet_mask']} : The requested operation requires elevation (Run as administrator)")
+                IPAddressTable.add_row(
+                    "Changing IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[red]The requested operation requires elevation (Run as administrator)")
             else:
-                print(f"[green] Network Interface IP Address Changed to :{line['ip_address']} {line['subnet_mask']}")
+                IPAddressTable.add_row(
+                    "Changing IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[green] Network Interface IP Address Changed")
         if stderr:
-            print(stderr)
+            IPAddressTable.add_row(
+                "Changing IP Address", f"{line['ip_address']} {line['subnet_mask']}", f"[red]{stderr}")
 
     @classmethod
     async def add_second_ip(cls, line: dict):
@@ -38,11 +47,14 @@ class Shell:
         await asyncio.sleep(1)
         if stdout:
             if 'The requested operation requires elevation (Run as administrator)' in stdout.decode():
-                print(f"[red] {line['ip_address']} {line['subnet_mask']} : The requested operation requires elevation (Run as administrator)")
+                IPAddressTable.add_row(
+                    "Adding IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[red]The requested operation requires elevation (Run as administrator)")
             else:
-                print(f"[green] IP Address :{line['ip_address']} {line['subnet_mask']} Added Succefully")
+                IPAddressTable.add_row(
+                    "Adding IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[green] Network Interface IP Address Changed")
         if stderr:
-            print(stderr)
+            IPAddressTable.add_row(
+                "Adding IP Address", f"{line['ip_address']} {line['subnet_mask']}", f"[red]{stderr}")
 
     @classmethod
     def change_to_bestline(lines):
