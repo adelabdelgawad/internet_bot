@@ -1,4 +1,3 @@
-from rich.table import Table
 import time
 from rich.console import Group
 from rich.panel import Panel
@@ -10,7 +9,6 @@ from rich.progress import ProgressColumn
 from rich.progress import TimeElapsedColumn
 from rich.progress import TaskProgressColumn
 from rich.progress import TaskID
-
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -54,22 +52,6 @@ class TaskProgressLabel(Progress):
         )
 
 class RichOverall:
-    @classmethod
-    def construct_rows(cls) -> None:
-        """Create Rows of Progress by the same sequence of the List Indexes
-            By default it will just reserve the location onlly,
-            and will be shown once add task executed for each progress
-
-        Sequence:
-            [1] table -> Reserved Row For Rich liveview table.
-             [2] process_label_class -> Reserved Row For Main Process Label.
-            [3] subproc_label_class -> Reserved Row For Current Running Task Name Label.
-             [4] subproc_pb_class -> Reserved Row ForCurrent Running Task ProgressBar in Percentage approach.
-            [5] ProgressBar -> Reserved Row For Main Process ProgressBar in Percentage approach.
-             [6] OverAllProgress -> Reserved Row For Whole Program ProgressBar in Percentage approach.
-        """
-        return [ rich_console.add_row(row) for row in progress_rows ]
-
     @classmethod
     def create_pb(cls, description: str, total: int) -> None:
         return OverAllProgress.add_task(description=description, total=total)
@@ -140,12 +122,19 @@ ProgressLabel = TaskProgressLabel()  # SubProcess Label Instance
 Proc = Rich(ProcPB, ProcLabel)
 SubProc = Rich(SubProcPB, SubProcLabel, True)
 
-IPAddressTable = Table() # Logs Table
-SpeedtestTable = Table() # Logs Table
+"""Create Rows of Progress by the same sequence of the List Indexes
+    By default it will just reserve the location onlly,
+    and will be shown once add task executed for each progress
 
+Sequence:
+    [1] table -> Reserved Row For Rich liveview table.
+        [2] process_label_class -> Reserved Row For Main Process Label.
+    [3] subproc_label_class -> Reserved Row For Current Running Task Name Label.
+        [4] subproc_pb_class -> Reserved Row ForCurrent Running Task ProgressBar in Percentage approach.
+    [5] ProgressBar -> Reserved Row For Main Process ProgressBar in Percentage approach.
+        [6] OverAllProgress -> Reserved Row For Whole Program ProgressBar in Percentage approach.
+"""
 ProgressGroup = Group(
-    IPAddressTable,
-    SpeedtestTable,
     Panel(Group(ProcLabel, SubProcLabel, SubProcPB, ProcPB, Task)),
     OverAllProgress,
 )

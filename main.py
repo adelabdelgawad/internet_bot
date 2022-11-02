@@ -1,20 +1,22 @@
 from time import sleep
 import os
 from typing import Optional
+from rich.console import Console
+from rich.live import Live
 from rich.progress import TaskID
 if os.name == 'nt':
     import Modules.win_st as Speedtest
 else:
     import Modules.linux_st as Speedtest
 from Modules.we import MYWEBaseClass
-from rich.live import Live
 from Modules.shells import Shell
 from Modules.progress import ProgressGroup
 from Modules.progress import Proc
 from Modules.progress import RichOverall
 from Modules.progress import SubProc
 from Modules.connection import SQLiteDB
-from rich.console import Console
+from Modules.tables import results_table
+
 import asyncio
 
 """
@@ -85,11 +87,17 @@ if __name__ == "__main__":
 
         _st_proc_lbl = Proc.create_label("[2] Analysis Internet Speed Tests")
         Speedtest.st_start(lines, cc) # Start Speedtest in Asyncio approach
-        RichOverall.advance(overall_pb)
 
-        # Change IP to Best Ping Latency Line
+        BST_LBL = SubProc.create_label("Chaning ip address to best latency line")
         Shell.change_to_bestline(lines)
-        
+        SubProc.finish_label(BST_LBL)
+
+        SubProc.hide_labels()
+        RichOverall.advance(overall_pb)
+        # Change IP to Best Ping Latency Line
+
+        print(results_table(lines))
+        sleep(5)        
     # #     # # Change The IP Address after speed test Based on Ping results
 
 

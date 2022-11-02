@@ -1,13 +1,9 @@
 import asyncio
-from multiprocessing.connection import wait
-from aiotestspeed.aio import Speedtest
 from rich import print
 from .progress import TaskPB
 from .progress import SubProc
-from .progress import SpeedtestTable
 from .connection import SQLiteDB
 from .shells import Shell
-import time
 
 async def _start_aiotestspeed(line):
     TASK = TaskPB.create(f"{line['ip_address']} Speedtest", 3)
@@ -24,26 +20,11 @@ async def _start_aiotestspeed(line):
                 ping = int(float(results[5]))
                 download = round(float(results[6]) / 1000 / 1000, 1)
                 upload = round(float(results[7]) / 1000 / 1000, 1)
-                SpeedtestTable.add_row(
-                    "Speedtest",
-                    f"{line['line_name']}",
-                    f"[green]Latency {ping}ms, Download: {download}mb/s, Upload: {upload}mb/s"
-                    )
-                await asyncio.wait(1)
-
             if stderr:
-                SpeedtestTable.add_row(
-                    "Speedtest",
-                    f"{line['line_name']}",
-                    f"[red]{stderr.decode()}"
-                    )
+                print(f"[red]{line['ip_address']}: {stderr}")
             await asyncio.sleep(1)
         except Exception as ex:
-            SpeedtestTable.add_row(
-                "Speedtest",
-                f"{line['line_name']}",
-                f"[red]{ex.decode()}"
-                )
+            print(f"[red]{line['ip_address']}: {ex}")
             await asyncio.sleep(1)
         finally:
             pings.add(ping)
@@ -75,16 +56,14 @@ async def _executing_st(cloned_lines):
     SubProc.finish_label(ST_Label)
 
 def st_start(lines, cc)-> None:
+    ST_LBL = SubProc.create_label("Start Speedtest")
     # Executing Speedtest
     chuck_lines = [lines[i:i +cc] for i in range (0, len(lines), cc)]
     for chuck_line in chuck_lines:
         cloned_lines = chuck_line.copy()
         primary_ip = chuck_line.pop()
         asyncio.run(_modifing_address(primary_ip, chuck_line))
-        SpeedtestTable.add_column("Task Type")
-        SpeedtestTable.add_column("Line Name")
-        SpeedtestTable.add_column("Result")
         asyncio.run(_executing_st(cloned_lines))
-    
+    SubProc.finish_label(ST_LBL)
         
 

@@ -1,7 +1,6 @@
 import asyncio
 from rich import print
 from .progress import SubProc
-from .progress import IPAddressTable
 from .connection import SQLiteDB
 
 
@@ -23,41 +22,44 @@ class Shell:
             rf"netsh interface ipv4 set address name=Ethernet static {line['ip_address']} {line['subnet_mask']} {line['gateway']}"
         )
         await asyncio.sleep(3)
-        
-        IPAddressTable.add_column("Task Type")
-        IPAddressTable.add_column("IP Address")
-        IPAddressTable.add_column("Result")
 
         if stdout:
             if 'The requested operation requires elevation (Run as administrator)' in stdout.decode():
-                IPAddressTable.add_row(
-                    "Changing IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[red]The requested operation requires elevation (Run as administrator)")
+                print(
+                    f"""Changing IP Addres to: {line['ip_address']} {line['subnet_mask']}: [red]The requested operation requires elevation (Run as administrator)"""
+                    )
             else:
-                IPAddressTable.add_row(
-                    "Changing IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[green] Network Interface IP Address Changed")
+                print(
+                    f"""Changing IP Addres to: {line['ip_address']} {line['subnet_mask']}: [green]IPAddress has been added succefully"""
+                    )
         if stderr:
-            IPAddressTable.add_row(
-                "Changing IP Address", f"{line['ip_address']} {line['subnet_mask']}", f"[red]{stderr}")
+            print(
+            f"""Changing IP Addres to: {line['ip_address']} {line['subnet_mask']}: [red]{stderr}"""
+            )
 
     @classmethod
     async def add_second_ip(cls, line: dict):
         stdout, stderr = await Shell.run(
             rf"netsh interface ipv4 add address name=Ethernet {line['ip_address']} {line['subnet_mask']}"
         )
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
+
         if stdout:
             if 'The requested operation requires elevation (Run as administrator)' in stdout.decode():
-                IPAddressTable.add_row(
-                    "Adding IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[red]The requested operation requires elevation (Run as administrator)")
+                print(
+                    f"Adding IP Addres: {line['ip_address']} {line['subnet_mask']}: [red]The requested operation requires elevation (Run as administrator)"
+                    )
             else:
-                IPAddressTable.add_row(
-                    "Adding IP Address", f"{line['ip_address']} {line['subnet_mask']}", "[green] Network Interface IP Address Changed")
+                print(
+                    f"""Adding IP Addres: {line['ip_address']} {line['subnet_mask']}: [green]IPAddress has been added succefully"""
+                    )
         if stderr:
-            IPAddressTable.add_row(
-                "Adding IP Address", f"{line['ip_address']} {line['subnet_mask']}", f"[red]{stderr}")
+            print(
+            f"""Adding IP Addres: {line['ip_address']} {line['subnet_mask']}: [red]{stderr}"""
+            )
 
     @classmethod
-    def change_to_bestline(lines):
+    def change_to_bestline(cls, lines):
         st_results = SQLiteDB.get_today_results(lines)
         lines_sorted: list = sorted(st_results, key=lambda d: float(d['ping']))  # Sort lines by Ping
         # Loop in the lines list to get the line information and change the IPAddress
