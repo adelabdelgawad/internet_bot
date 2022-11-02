@@ -97,7 +97,24 @@ class DataBase:
             conn.row_factory = dict_factory
             return [ conn.execute(f"SELECT * FROM results where line_name = '{line['line_name']}' and date= '{today}'").fetchone() for line in lines ]
 
-SQLiteDB = DataBase("data.sqlite3")
+    async def get_today_row_result(self, line: dict, target: str):
+        """
+        ASYNCIO Model Method, Retreive today value for the result row
+        :prameters:
+            Line: dict -> a Dict value to get the Line Name
+            Target: str -> The Desired Value Argument
+        """
+        async with aiosqlite.connect(self.db) as db:
+            try:
+                db.row_factory = aiosqlite.Row
+                async with db.execute(f"""SELECT {target} FROM results WHERE line_name='{line['line_name']}' AND date='{today}'""") as cursor:
+                    async for row in cursor:
+                        return row[f'{target}']
+            except:
+                return ''
 
+
+SQLiteDB = DataBase("data.sqlite3")
+MemoryDB = DataBase(":memory:")
 if __name__ == "__main__":
     pass

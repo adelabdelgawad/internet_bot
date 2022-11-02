@@ -8,7 +8,7 @@ if os.name == 'nt':
     import Modules.win_st as Speedtest
 else:
     import Modules.linux_st as Speedtest
-from Modules.we import MYWEBaseClass
+from Modules.we import MYWE
 from Modules.shells import Shell
 from Modules.progress import ProgressGroup
 from Modules.progress import Proc
@@ -31,32 +31,20 @@ A simple Python program Made to Automate the Speedtest and Quota Scraping
 The Code is East Follow and Easy Manipulation
 The Code Made and tested on a Python 3.10
 """
-MyWE = MYWEBaseClass()
 
 main_console = Console()
 
-def _start_quota_check(lines: list):
-    """
-    AsyncIO Function to Run Quota Scraping
-    Function is Runs under Progress
-
-    Argumentes:
-        - Lines: list -> Each line is in Dic Format
-    """
-    [asyncio.run(MyWE.start(line)) for line in lines ]
-
-
 def _db_subproc(proc_pb: TaskID, db_table_name: str) -> list:
-    _subproc_label = SubProc.create_label("importing lines information")
+    _subproc_label = SubProc.label_create("importing lines information")
     result: list = SQLiteDB.get_table(db_table_name)
-    SubProc.finish_label(_subproc_label)
+    SubProc.label_finish(_subproc_label)
     Proc.advance_pb(proc_pb)
     return result
 
 
 def _import_database_rows():
-        _db_proc_lbl = Proc.create_label("[1] Import DataBase Tables")
-        _db_pb = Proc.create_pb(4)
+        _db_proc_lbl = Proc.label_create("[1] Import DataBase Tables")
+        _db_pb = Proc.pb_create(4)
 
         lines: list = _db_subproc(_db_pb, "lines")
         [SQLiteDB.create_today_row(line) for line in lines]  # Task
@@ -67,7 +55,7 @@ def _import_database_rows():
         email_receipients: list = _db_subproc(_db_pb, 'email_receipients')[0]
 
         # End the Progress Task
-        SubProc.hide_labels()
+        SubProc.labels_hide()
         Proc.finish(_db_pb, _db_proc_lbl)
 
         return lines, settings, cc, indicators, email_receipients
@@ -81,25 +69,29 @@ if __name__ == "__main__":
     with Live(ProgressGroup, refresh_per_second=30, vertical_overflow="visible", transient=True) as live:
         print = live.console.print
 
-        overall_pb = RichOverall.create_pb("[red]Daily InternetCheck Speed and Quota...", 4)
+        overall_pb = RichOverall.pb_create("[red]Daily InternetCheck Speed and Quota...", 4)
         lines, settings, cc, indicators, email_receipients = _import_database_rows()
         RichOverall.advance(overall_pb)
 
-        _st_proc_lbl = Proc.create_label("[2] Analysis Internet Speed Tests")
-        Speedtest.st_start(lines, cc) # Start Speedtest in Asyncio approach
+        # _st_proc_lbl = Proc.label_create("[2] Analysis Internet Speed Tests")
+        # Speedtest.st_start(lines, cc) # Start Speedtest in Asyncio approach
 
-        BST_LBL = SubProc.create_label("Chaning ip address to best latency line")
-        Shell.change_to_bestline(lines)
-        SubProc.finish_label(BST_LBL)
+        # BST_LBL = SubProc.label_create("Chaning ip address to best latency line")
+        # Shell.change_to_bestline(lines)
+        # SubProc.label_finish(BST_LBL)
 
-        SubProc.hide_labels()
-        RichOverall.advance(overall_pb)
-        # Change IP to Best Ping Latency Line
+        # SubProc.labels_hide()
+        # RichOverall.advance(overall_pb)
+        # # Change IP to Best Ping Latency Line
 
-        print(results_table(lines))
-        sleep(5)        
-    # #     # # Change The IP Address after speed test Based on Ping results
+        # print(results_table(lines))
 
+        # sleep(1)      
+          
+        _we_proc_lbl = Proc.label_create("[3] Start Internet Qouta Check")
+        [asyncio.run(MYWE.start(line)) for line in lines ]
+        SubProc.labels_hide()
+        Proc.label_finish(_we_proc_lbl)
 
     #     # # Start Quota Check
     #     # _start_quota_check(lines)

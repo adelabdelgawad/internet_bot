@@ -53,7 +53,7 @@ class TaskProgressLabel(Progress):
 
 class RichOverall:
     @classmethod
-    def create_pb(cls, description: str, total: int) -> None:
+    def pb_create(cls, description: str, total: int) -> None:
         return OverAllProgress.add_task(description=description, total=total)
 
     @classmethod
@@ -73,6 +73,14 @@ class TaskPB():
     def finish(cls, task_id: TaskID):
         Task.update(task_id=task_id, completed=True, visible=False)
 
+    @classmethod
+    def complete(cls, task_id: TaskID):
+        Task.update()
+        Task.update(task_id=task_id, completed=True, description=f"[green]{Task.tasks[task_id].description}")
+
+    @classmethod
+    def finish_all(cls):
+        [Task.update(task_id=task_id, completed=True, visible=False) for task_id in Task.task_ids]
 
 
 class Rich():
@@ -83,12 +91,12 @@ class Rich():
         self.label = label
         self.sub = sub
 
-    def create_label(self, description: str) -> TaskID:
+    def label_create(self, description: str) -> TaskID:
         if self.sub:
             return self.label.add_task(description=f"   {description}")
         return self.label.add_task(description=description)
 
-    def create_pb(self, total: int, description: str="") -> TaskID:
+    def pb_create(self, total: int, description: str="") -> TaskID:
         return self.pb.add_task(description=description, total=total)
 
     def advance_pb(self, subproc_id: TaskID, advance: Optional[int]=1) -> None:
@@ -102,11 +110,14 @@ class Rich():
             return
         self.label.update(label_id, description = f"[green]{self.label.tasks[label_id].description}", completed=True, finished_time=True)
 
-    def finish_label(self, label_id: TaskID):
+    def label_finish(self, label_id: TaskID):
         self.label.stop_task(label_id)
         self.label.update(label_id, description = f"[green]{self.label.tasks[label_id].description}", completed=True, finished_time=True)
+        
+    def pb_finish(self, pb_id: TaskID):
+        self.pb.update(pb_id, completed=True,finished_time=True, visible=False)
 
-    def hide_labels(self):
+    def labels_hide(self):
         self.label.stop()
         [self.label.update(task_id=task_id, completed=True, visible=False) for task_id in self.label.task_ids]
 

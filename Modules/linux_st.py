@@ -39,24 +39,24 @@ async def _start_aiotestspeed(line):
 
 async def _modifing_address(primary_ip, chuck_line):
     # Changing Primary IP Address
-    CHANGING_LABEL = SubProc.create_label("Modifying IP Addresses")
+    CHANGING_LABEL = SubProc.label_create("Modifying IP Addresses")
     await Shell.change_nic_ip(primary_ip)
     await asyncio.sleep(3)
     [await Shell.add_second_ip(line) for line in chuck_line]
     await asyncio.sleep(2)
-    SubProc.finish_label(CHANGING_LABEL)
+    SubProc.label_finish(CHANGING_LABEL)
 
 async def _executing_st(cloned_lines):
-    ST_Label = SubProc.create_label("Starting Ookla Speedtest")
+    ST_Label = SubProc.label_create("Starting Ookla Speedtest")
     
     await asyncio.sleep(.5)
     tasks: list = [_start_aiotestspeed(line) for line in cloned_lines]
     await asyncio.gather(*tasks)
 
-    SubProc.finish_label(ST_Label)
+    SubProc.label_finish(ST_Label)
 
 def st_start(lines, cc)-> None:
-    ST_LBL = SubProc.create_label("Start Speedtest")
+    ST_LBL = SubProc.label_create("Start Speedtest")
     # Executing Speedtest
     chuck_lines = [lines[i:i +cc] for i in range (0, len(lines), cc)]
     for chuck_line in chuck_lines:
@@ -64,6 +64,6 @@ def st_start(lines, cc)-> None:
         primary_ip = chuck_line.pop()
         asyncio.run(_modifing_address(primary_ip, chuck_line))
         asyncio.run(_executing_st(cloned_lines))
-    SubProc.finish_label(ST_LBL)
+    SubProc.label_finish(ST_LBL)
         
 
