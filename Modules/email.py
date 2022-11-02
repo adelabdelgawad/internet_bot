@@ -5,17 +5,24 @@ from email.utils import formataddr
 import smtplib
 import ssl
 
+class Email:
+    table_rows: list = []
+
+    @classmethod
+    def start(cls, results, settings, recipients):
+        Email.convert(results)
+        table: list = " ".join(Email.table_rows)
+        [Email.send(settings, recipient['email'], table) for recipient in recipients]  # Send Email
 
 
-class EmailSender:
     def send(config, receiver, table) -> None:
-        sender_alias: str = config[0]
-        sender: str = config[1]
-        password: str = config[2]
-        subject: str = config[3]
+        sender_alias: str = config['sender_alias']
+        sender: str = config['sender']
+        password: str = config['password']
+        subject: str = config['email_subject']
 
         mail_body: list = []  # list will contain the results and used in email
-        mail_body.append(EmailSender.created_table(table))
+        mail_body.append(Email.created_table(table))
         mail_body = " ".join(mail_body)
         
 
@@ -119,119 +126,99 @@ class EmailSender:
             <p>&nbsp;</p>
             """
 
-class EmailCreator:
-    result_formated: list = []
-    def convert(self, DB, row_id) -> None:
-        id: int
-        line_name: str
-        line_number: str
-        download: str
-        upload: str
-        isp: str
-        line_using: str
-        used: int
-        used_percentage: int
-        remaining: int
-        balance: int
-        renew_date: str
-        consumed: int
-        date: str
-        credit_transaction: str
-        renew_status: str
+    @classmethod
+    def convert(cls, results: list) -> None:
+        for result in results:
+            black_color = '#000000'
+            red_color = '#ff0000'
 
-        black_color = '#000000'
-        red_color = '#ff0000'
+            line_number_color: str = black_color
+            line_name_color: str = black_color
+            isp_color: str = black_color
+            used_color: str = black_color
+            remaining_color: str = black_color
+            consumed_color: str = black_color
+            balance_color: str = black_color
+            
+            if result['isp'] == 'WE':
+                line_number_color, line_name_color, isp_color = black_color, black_color, black_color
+            try:
+                if int(result['used_percentage']) > 70:
+                    used_color, remaining_color = red_color
+            except: pass
 
-        line_number_color: str = black_color
-        line_name_color: str = black_color
-        isp_color: str = black_color
-        used_color: str = black_color
-        remaining_color: str = black_color
-        consumed_color: str = black_color
-        balance_color: str = black_color
-        id, line_id, line_name, line_number, download, upload, isp, line_using, used, used_percentage, remaining, balance, renew_date, consumed, date, credit_transaction, renew_status = DB.get_today_row(row_id)
-        
-        if line_name == 'WE':
-            line_number_color, line_name_color, isp_color = black_color
-        try:
-            if int(used_percentage) > 70:
-                used_color, remaining_color = red_color
-        except: pass
+            try:
+                if int(result['consumed']) > 50:
+                    consumed_color = red_color
+            except: pass
 
-        try:
-            if int(consumed) > 50:
-                consumed_color = red_color
-        except: pass
+            try:
+                if int(result['balance']) < 1000:
+                    balance_color = red_color
+            except:
+                pass
 
-        try:
-            if int(balance) < 1000:
-                balance_color = red_color
-        except:
-            pass
+            if result['used_percentage']:
+                used_percentage = f"{result['used_percentage']}%"
+            if result['remaining']:
+                remaining = f"{result['remaining']} GB"
+            if result['consumed']:
+                consumed = f"{result['consumed']} GB"
+            if result['balance']:
+                balance = f"{result['balance']} LE"
+            
+            Email.table_rows.append(
+        f"""\
+                <tr>
+                    <td style="height:25px; text-align:center; width:40px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: {line_number_color};">{result['line_number']}</td>
 
-        if used_percentage:
-            used_percentage = f"{used_percentage}%"
-        if remaining:
-            remaining = f"{remaining} GB"
-        if consumed:
-            consumed = f"{consumed} GB"
-        if balance:
-            balance = f"{balance} LE"
+                    <td style="height:25px; text-align:center; width:40px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: {line_name_color};">{result['line_name']}</td>
+
+                    <td style="height:25px; text-align:center; width:40px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: {isp_color};">{result['isp']}</td>
 
 
-
-        EmailCreator.result_formated.append(
-f"""\
-        <tr>
-            <td style="height:25px; text-align:center; width:40px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: {line_number_color};">{line_number}</td>
-
-            <td style="height:25px; text-align:center; width:40px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: {line_name_color};">{line_name}</td>
-
-            <td style="height:25px; text-align:center; width:40px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: {isp_color};">{isp}</td>
+                    <td style="height:25px; text-align:center; width:40px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: #000000;">{result['line_using']}</td>
 
 
-            <td style="height:25px; text-align:center; width:40px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: #000000;">{line_using}</td>
+                    <td style="height:25px; text-align:center; width:40px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: #000000;">{result['download']}</td>
 
+                    <td style="height:25px; text-align:center; width:40px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: #000000;">{result['upload']}</td>
 
-            <td style="height:25px; text-align:center; width:40px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: #000000;">{download}</td>
+                    <td style="height:25px; text-align:center; width:60px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: {used_color};">{str(result['used_percentage'])}</td>
 
-            <td style="height:25px; text-align:center; width:40px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: #000000;">{upload}</td>
+                    <td style="height:25px; text-align:center; width:70px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: {remaining_color};">{str(result['remaining'])}</td>
 
-            <td style="height:25px; text-align:center; width:60px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: {used_color};">{str(used_percentage)}</td>
+                    <td style="height:25px; text-align:center; width:70px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: {consumed_color};">{str(result['consumed'])}</td>
 
-            <td style="height:25px; text-align:center; width:70px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: {remaining_color};">{str(remaining)}</td>
+                    <td style="height:25px; text-align:center; width:70px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: #000000;">{result["renew_date"]}</td>
 
-            <td style="height:25px; text-align:center; width:70px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: {consumed_color};">{str(consumed)}</td>
+                    <td style="height:25px; text-align:center; width:60px">
+                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                    Color: {balance_color};">{str(result['balance'])}</td>
 
-            <td style="height:25px; text-align:center; width:70px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: #000000;">{renew_date}</td>
-
-            <td style="height:25px; text-align:center; width:60px">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-            Color: {balance_color};">{str(balance)}</td>
-
-        </tr>
-        """
-        )
-
+                </tr>
+                """
+                )
+   
 if __name__ == "__main__":
-    EmailSender.send('smhit.bkp@gmail.com', "baypifdcneetnqio", "adel.aly@andalusiagroup.net", "test")
+    Email.send('smhit.bkp@gmail.com', "baypifdcneetnqio", "adel.aly@andalusiagroup.net", "test")
