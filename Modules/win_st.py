@@ -31,8 +31,7 @@ async def _start_aiotestspeed(line):
             downloads.add(download)
             uploads.add(upload)
             TaskPB.advance(TASK)
-        TaskPB.finish(TASK)
-        await asyncio.sleep(1)
+    TaskPB.finish(TASK)
 
     result = f"ping='{max(pings)}', upload='{max(uploads)}', download='{max(downloads)}'"
     await SQLiteDB.add_result_to_today_line_row(line, result)
@@ -56,7 +55,6 @@ async def _executing_st(cloned_lines):
     SubProc.label_finish(ST_Label)
 
 def st_start(lines, cc)-> None:
-    ST_LBL = SubProc.label_create("Start Speedtest")
     # Executing Speedtest
     chuck_lines = [lines[i:i +cc] for i in range (0, len(lines), cc)]
     for chuck_line in chuck_lines:
@@ -64,6 +62,5 @@ def st_start(lines, cc)-> None:
         primary_ip = chuck_line.pop()
         asyncio.run(_modifing_address(primary_ip, chuck_line))
         asyncio.run(_executing_st(cloned_lines))
-    SubProc.label_finish(ST_LBL)
         
 

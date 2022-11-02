@@ -1,9 +1,7 @@
 from rich.table import Table
 from .connection import SQLiteDB
 
-def results_table(lines: list):
-    results = SQLiteDB.get_today_results(lines)
-
+def results_table(lines_result: list):
     table = Table(title="Today Results")
 
     table.add_column("Name", justify="right", style="cyan", no_wrap=True)
@@ -15,7 +13,7 @@ def results_table(lines: list):
     table.add_column("Renewing Date", style="cyan")
     table.add_column("Balace", style="cyan")
 
-    for line in results:
+    for line in lines_result:
         table.add_row(
             f"{line['line_name']}",
             f"{line['ping']} ms",

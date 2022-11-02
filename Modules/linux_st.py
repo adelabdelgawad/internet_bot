@@ -31,8 +31,8 @@ async def _start_aiotestspeed(line):
             downloads.add(download)
             uploads.add(upload)
             TaskPB.advance(TASK)
-        TaskPB.finish(TASK)
-        await asyncio.sleep(1)
+    TaskPB.finish(TASK)
+
 
     result = f"ping='{max(pings)}', upload='{max(uploads)}', download='{max(downloads)}'"
     await SQLiteDB.add_result_to_today_line_row(line, result)

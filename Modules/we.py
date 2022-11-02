@@ -30,14 +30,14 @@ class MYWE():
         Args:
          line: dic -> Line information
         """
-        QUOTA_LABEL = SubProc.create_label(f"{line['line_name']} QuotaCheck") 
-        QUOTA_PB = SubProc.create_pb(4)
+        QUOTA_LABEL = SubProc.label_create(f"{line['line_name']} QuotaCheck") 
+        QUOTA_PB = SubProc.pb_create(4)
 
         driver_exe = 'chromedriver'  # assign Path
         await asyncio.sleep(.2)
         options = webdriver.ChromeOptions()
         await asyncio.sleep(.2)
-        # options.add_argument("--headless")  # Open chome hidden
+        options.add_argument("--headless")  # Open chome hidden
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         browser =  webdriver.Chrome(executable_path=driver_exe, options=options)
         SubProc.advance_pb(QUOTA_PB)
@@ -54,7 +54,7 @@ class MYWE():
             CREDIT_TRANSCATION = await MYWE._credit_transaction(line)
             RENEWA_STATUS = await MYWE._renew_status(CREDIT_TRANSCATION, line) 
             SubProc.advance_pb(QUOTA_PB)
-            SubProc.finish_label(QUOTA_LABEL)
+            SubProc.label_finish(QUOTA_LABEL)
             SubProc.pb_finish(QUOTA_PB)
             browser.quit()
 
@@ -77,7 +77,8 @@ class MYWE():
         except:
             browser.quit()
             MYWE.faild.append(line)
-            SubProc.finish_label(QUOTA_LABEL)
+            SubProc.pb_finish(QUOTA_PB)
+            SubProc.label_finish(QUOTA_LABEL)
             return False
 
     @classmethod
