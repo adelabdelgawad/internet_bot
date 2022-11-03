@@ -65,13 +65,10 @@ class DataBase:
             Target: str -> The Desired Value Argument
         """
         day = datetime.strftime(datetime.now() - timedelta(1), '%d-%m-%Y')
-        print(f"Day: {day}")
         try:
-            print('try')
             db = await aiosqlite.connect(self.db)
             cursor = await db.execute(f"""SELECT {target} FROM results WHERE line_name='{line['line_name']}' AND date='{day}' ORDER BY id DESC""")
             result = await cursor.fetchone()
-            print(result[0])
             await db.close()
             return result[0]
         except:

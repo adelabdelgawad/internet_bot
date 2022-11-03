@@ -16,7 +16,7 @@ from .progress import (
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
 time = datetime.now().strftime('%H:%M')
-
+date = f"{today} | {time}"
 
 ClassID = NewType("ClassID", str)
 SeleniumDriver = NewType("SeleniumDriver", str)
@@ -155,14 +155,19 @@ class MYWE():
                         await SQLiteDB.add_result_to_today_line_row(line, result)
 
     @classmethod
-    async def _consumed_calculation(cls, used: int, line: dict):
+    async def _consumed_calculation(cls, used: int, line: dict) -> dict:
         last_used = await SQLiteDB.get_old_value(line, 'used')
         if last_used:
-            print(f'last used {last_used}')
+            start = await SQLiteDB.get_old_value(line, 'time')
+            start = datetime.strptime(start, "%d-%m-%Y | %H:%M")
+            end =   datetime.strptime(date, "%d-%m-%Y | %H:%M")
+            diff = end - start
+            diff = int(diff.total_seconds() / 3600)
             consumed = int(used) - int(last_used)
-            print(f'Consumed {consumed}')
             if int(consumed) > 0:
                 result = f"consumed={consumed}"
+                await SQLiteDB.add_result_to_today_line_row(line, result)
+                result = f"dif_hours={diff}"
                 await SQLiteDB.add_result_to_today_line_row(line, result)
             return
         result = f"consumed=''"
