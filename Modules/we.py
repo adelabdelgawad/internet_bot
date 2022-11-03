@@ -9,7 +9,10 @@ import asyncio
 import urllib3
 from typing import NewType
 from .connection import SQLiteDB
-from .progress import SubProc
+from .progress import (
+    Procs,
+    WEProgressBar
+)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
 time = datetime.now().strftime('%H:%M')
@@ -30,36 +33,32 @@ class MYWE():
         Args:
          line: dic -> Line information
         """
-        QUOTA_LABEL = SubProc.label_create(f"{line['line_name']} QuotaCheck") 
-        QUOTA_PB = SubProc.pb_create(4)
+        QUOTATASK = WEProgressBar.add_task(f"{line['line_name']} QuotaCheck", total=3) 
 
         driver_exe = 'chromedriver'  # assign Path
         await asyncio.sleep(.2)
         options = webdriver.ChromeOptions()
         await asyncio.sleep(.2)
-        options.add_argument("--headless")  # Open chome hidden
+        # options.add_argument("--headless")  # Open chome hidden
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         browser =  webdriver.Chrome(executable_path=driver_exe, options=options)
-        SubProc.advance_pb(QUOTA_PB)
-        if await MYWE.logged(browser, line, QUOTA_PB, QUOTA_LABEL):
+        if await MYWE.logged(browser, line, QUOTATASK):
             html = browser.page_source
             soup = BeautifulSoup(html, 'html.parser')
-            SubProc.advance_pb(QUOTA_PB)
+            WEProgressBar.update(QUOTATASK, advance=1)
             USED = await MYWE._grab_and_add_to_db(line, soup, 'usage-details', ' Used', 'used')
             REMAINING = await MYWE._grab_and_add_to_db(line, soup, 'remaining-details', ' Remaining', 'remaining')
             USED_PERCENTAGE = await MYWE._used_percentage(line, REMAINING)
             BALANCE = await MYWE._grab_and_add_to_db(line, soup, 'font-26px', ' ', 'balance')
-            SubProc.advance_pb(QUOTA_PB)
+            WEProgressBar.update(QUOTATASK, advance=1)
             RENEWAL = await MYWE._grab_renewal_and_add_to_db(browser, line, 'renew_date')
             CREDIT_TRANSCATION = await MYWE._credit_transaction(line)
             RENEWA_STATUS = await MYWE._renew_status(CREDIT_TRANSCATION, line) 
-            SubProc.advance_pb(QUOTA_PB)
-            SubProc.label_finish(QUOTA_LABEL)
-            SubProc.pb_finish(QUOTA_PB)
+            WEProgressBar.update(QUOTATASK, advance=1)
             browser.quit()
 
     @classmethod
-    async def logged(cls, browser, line: dict, QUOTA_PB: TaskID, QUOTA_LABEL: TaskID):
+    async def logged(cls, browser, line: dict, QUOTATASK: TaskID):
         try:
             browser.set_page_load_timeout(5)
             browser.get("https://my.te.eg/user/login")  # Open WE Website
@@ -77,8 +76,7 @@ class MYWE():
         except:
             browser.quit()
             MYWE.faild.append(line)
-            SubProc.pb_finish(QUOTA_PB)
-            SubProc.label_finish(QUOTA_LABEL)
+            WEProgressBar.stop_task(QUOTATASK)
             return False
 
     @classmethod
