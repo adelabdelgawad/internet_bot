@@ -47,6 +47,7 @@ def _import_database_rows():
 
     return lines, settings, cc, indicators, email_receipients
 
+
 if __name__ == "__main__":
     if os.name == 'nt':
         os.system("cls")
@@ -59,6 +60,13 @@ if __name__ == "__main__":
     and Create Empty Rows
     """
     lines, settings, cc, indicators, email_receipients = _import_database_rows()
+    print(f" s : {lines[0]}")
+
+    p = asyncio.run(SQLiteDB.fetch_yesterday_result(lines[0]))
+    print("s")
+    print(p)
+    
+    sleep(60)
 
     [SQLiteDB.create_today_row(line) for line in lines]  # Create Empty Today Rows
     

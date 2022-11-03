@@ -9,6 +9,7 @@ Uses SQLite Standard Module
 and AIOSQLITE ASYNCIO Model Modules
 """
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
+yesterday = datetime.strftime(datetime.now() - timedelta(1), '%d-%m-%Y')
 time = datetime.now().strftime('%H:%M')
 date = f"{today} | {time}"
 
@@ -46,6 +47,26 @@ class DataBase:
             conn.row_factory = dict_factory
             return conn.execute(f"SELECT * FROM {table_name}").fetchall()
 
+    async def fetch_yesterday_result(self, line: dict) -> dict:
+        """
+        Asycio Method to Fetch Table as Dict
+         Key: column description
+        Value: column value
+        """
+        try:
+            db = await aiosqlite.connect(self.db)
+            db.row_factory = dict_factory
+            cursor = await db.execute(
+                f"""SELECT * FROM results WHERE line_name='{line['line_name']}'
+                AND date='{yesterday}' ORDER BY id DESC"""
+                )
+            result = await cursor.fetchone()
+            print(f"p: {result}")
+            await db.close()
+            return result[0]
+        except Exception as ex:
+            print(ex)
+
     def create_today_row(self, line: dict) -> None:
         """
         Search for today line row
@@ -56,6 +77,7 @@ class DataBase:
             conn.execute(f"""INSERT INTO results ('line_id', 'line_name', 'isp', 'line_using', 'line_number', 'date', 'time') 
             VALUES
             ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '{date}')""")
+
 
     async def get_old_value(self, line: dict, target: str) -> str:
         """

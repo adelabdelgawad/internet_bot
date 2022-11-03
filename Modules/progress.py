@@ -32,6 +32,10 @@ class ProgressBar(Progress):
 
 
 class Label(Progress):
+    """
+    Customized Rich Progress Class
+     LabelBar Only
+    """
     @classmethod
     def get_default_columns(cls) -> Tuple[ProgressColumn, ...]:
         return(
