@@ -1,19 +1,25 @@
-import time
-from rich.console import Group
 from rich.panel import Panel
-from rich.progress import Progress
-from rich.progress import BarColumn
-from rich.progress import TextColumn
-from rich.progress import SpinnerColumn
-from rich.progress import ProgressColumn
-from rich.progress import TimeElapsedColumn
-from rich.progress import TaskProgressColumn
-from rich.progress import TaskID
-from typing import Optional
-from typing import Sequence
+
+from rich.console import(
+    Group,
+    Console
+) 
+from rich.progress import(
+    Progress,
+    BarColumn,
+    TextColumn,
+    ProgressColumn,
+    TimeElapsedColumn,
+    TaskProgressColumn,
+)
+
 from typing import Tuple
 
+
 class ProgressBar(Progress):
+    """
+    Cloned Rich.Progress Class
+    """
     @classmethod
     def get_default_columns(cls) -> Tuple[ProgressColumn, ...]:
         return (
@@ -24,6 +30,7 @@ class ProgressBar(Progress):
             TimeElapsedColumn(),
         )
 
+
 class Label(Progress):
     @classmethod
     def get_default_columns(cls) -> Tuple[ProgressColumn, ...]:
@@ -32,14 +39,14 @@ class Label(Progress):
     TimeElapsedColumn()
         )
 
-OverAllProgress = ProgressBar()
+
 Procs = Label()
 STProgressBar = ProgressBar()
 WEProgressBar = ProgressBar()
+ResultConsole = Console()
 
 ProgressGroup = Group(
     Panel(Group(Procs)),
     Panel(Group(STProgressBar)),
-    Panel(Group(WEProgressBar)),
-    OverAllProgress
+    Panel(Group(WEProgressBar))
 )

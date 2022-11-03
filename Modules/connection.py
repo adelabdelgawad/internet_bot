@@ -10,6 +10,7 @@ and AIOSQLITE ASYNCIO Model Modules
 """
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
 time = datetime.now().strftime('%H:%M')
+date = f"{today} | {time}"
 
 def dict_factory(cursor: str, row: int) -> dict:
     """
@@ -52,14 +53,9 @@ class DataBase:
         Create today empty row
         """
         with self._sqlite as conn:
-            rows = conn.execute(
-                f"""SELECT * FROM results WHERE line_name = '{line['line_name']}' and date = '{today}'""").fetchall()
-            if rows:    # Deleted founded row
-                for row in rows:
-                    conn.execute(f"DELETE from results where id={row['id']}")
             conn.execute(f"""INSERT INTO results ('line_id', 'line_name', 'isp', 'line_using', 'line_number', 'date', 'time') 
             VALUES
-            ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '{time}')""")
+            ('{line['line_id']}', '{line['line_name']}', '{line['isp']}', '{line['line_using']}',  {line['line_number']}, '{today}', '{date}')""")
 
     async def get_old_value(self, line: dict, target: str) -> str:
         """
@@ -69,11 +65,18 @@ class DataBase:
             Target: str -> The Desired Value Argument
         """
         day = datetime.strftime(datetime.now() - timedelta(1), '%d-%m-%Y')
-        async with aiosqlite.connect(self.db) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute(f"""SELECT {target} FROM results WHERE line_name='{line['line_name']}' AND date='{day}'""") as cursor:
-                async for row in cursor:
-                    return row[f'{target}']
+        print(f"Day: {day}")
+        try:
+            print('try')
+            db = await aiosqlite.connect(self.db)
+            cursor = await db.execute(f"""SELECT {target} FROM results WHERE line_name='{line['line_name']}' AND date='{day}' ORDER BY id DESC""")
+            result = await cursor.fetchone()
+            print(result[0])
+            await db.close()
+            return result[0]
+        except:
+            return ''
+        
 
     async def add_result_to_today_line_row(self, line: str, result: str) -> None:
         """
@@ -83,7 +86,10 @@ class DataBase:
             result: str -> The Desired Result to Update
         """
         async with aiosqlite.connect(self.db) as db:
-            await db.execute(f"""Update results SET {result} WHERE line_name='{line['line_name']}' and date = '{today}'""")
+            await db.execute(
+                f"""Update results SET {result} WHERE line_name='{line['line_name']}' and date = '{today}'
+                and id = (SELECT MAX(id) from results WHERE line_name='{line['line_name']}'
+            )""")
             await db.commit()
             await asyncio.sleep(.1)
 

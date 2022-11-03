@@ -1,7 +1,14 @@
+from rich.console import Console
 from rich.table import Table
-from .connection import SQLiteDB
 
-def results_table(lines_result: list):
+def print_result(lines_result: list):
+    """
+    Print Results Table Using Rich Tables Module
+    Results Contains Speedtest And Quota Check
+    Args:
+     lines_result: list -> he Database Results row 
+    """
+
     table = Table(title="Today Results")
 
     table.add_column("Name", justify="right", style="cyan", no_wrap=True)
@@ -24,4 +31,5 @@ def results_table(lines_result: list):
             f"{line['renew_date']}",
             f"{line['balance']} LE",
         )
-    return table
+    console = Console()
+    console.print(table)

@@ -27,7 +27,19 @@ class MYWE():
     faild: list = []
 
     @classmethod
-    async def start(cls, line: dict):
+    async def start(cls, lines):
+        _we_proc_lbl = Procs.add_task("[3] Start Internet Qouta Check")  # Create Process Task Label
+
+        [await MYWE.start_scraping(line) for line in lines]
+
+        Procs.stop_task(_we_proc_lbl)
+        Procs.update(
+            _we_proc_lbl,
+            description = f"[green][3] Start Internet Qouta Check",
+            completed=True, finished_time=True)
+
+    @classmethod
+    async def start_scraping(cls, line: dict):
         """
         Start MyWE Scraping Using Line Information
         Args:
@@ -39,7 +51,7 @@ class MYWE():
         await asyncio.sleep(.2)
         options = webdriver.ChromeOptions()
         await asyncio.sleep(.2)
-        # options.add_argument("--headless")  # Open chome hidden
+        options.add_argument("--headless")  # Open chome hidden
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         browser =  webdriver.Chrome(executable_path=driver_exe, options=options)
         if await MYWE.logged(browser, line, QUOTATASK):
@@ -47,13 +59,16 @@ class MYWE():
             soup = BeautifulSoup(html, 'html.parser')
             WEProgressBar.update(QUOTATASK, advance=1)
             USED = await MYWE._grab_and_add_to_db(line, soup, 'usage-details', ' Used', 'used')
+            CONSUMED = await MYWE._consumed_calculation(USED, line)
             REMAINING = await MYWE._grab_and_add_to_db(line, soup, 'remaining-details', ' Remaining', 'remaining')
             USED_PERCENTAGE = await MYWE._used_percentage(line, REMAINING)
             BALANCE = await MYWE._grab_and_add_to_db(line, soup, 'font-26px', ' ', 'balance')
             WEProgressBar.update(QUOTATASK, advance=1)
             RENEWAL = await MYWE._grab_renewal_and_add_to_db(browser, line, 'renew_date')
             CREDIT_TRANSCATION = await MYWE._credit_transaction(line)
-            RENEWA_STATUS = await MYWE._renew_status(CREDIT_TRANSCATION, line) 
+            RENEWA_STATUS = await MYWE._renew_status(CREDIT_TRANSCATION, line)
+            COnsumed = await MYWE._renew_status(CREDIT_TRANSCATION, line)
+
             WEProgressBar.update(QUOTATASK, advance=1)
             browser.quit()
 
@@ -129,11 +144,26 @@ class MYWE():
     @classmethod
     async def _renew_status(cls, credit_transaction: str, line: dict):
         if credit_transaction:
-            last_renew_date = await SQLiteDB.get_old_value(line, 'renew_date')
-            if last_renew_date:
-                if last_renew_date == today:
-                    result = f"renew_status='Automatic'"
-                    await SQLiteDB.add_result_to_today_line_row(line, result)
-                if last_renew_date != today:
-                    result = f"renew_status='Manual'"
-                    await SQLiteDB.add_result_to_today_line_row(line, result)
+            if credit_transaction < 0: 
+                last_renew_date = await SQLiteDB.get_old_value(line, 'renew_date')
+                if last_renew_date:
+                    if last_renew_date == today:
+                        result = f"renew_status='Automatic'"
+                        await SQLiteDB.add_result_to_today_line_row(line, result)
+                    if last_renew_date != today:
+                        result = f"renew_status='Manual'"
+                        await SQLiteDB.add_result_to_today_line_row(line, result)
+
+    @classmethod
+    async def _consumed_calculation(cls, used: int, line: dict):
+        last_used = await SQLiteDB.get_old_value(line, 'used')
+        if last_used:
+            print(f'last used {last_used}')
+            consumed = int(used) - int(last_used)
+            print(f'Consumed {consumed}')
+            if int(consumed) > 0:
+                result = f"consumed={consumed}"
+                await SQLiteDB.add_result_to_today_line_row(line, result)
+            return
+        result = f"consumed=''"
+        await SQLiteDB.add_result_to_today_line_row(line, result)

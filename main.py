@@ -1,19 +1,15 @@
 from time import sleep
 import os
-from rich.console import Console
 from rich.live import Live
-from rich.progress import TaskID
 from Modules.st import Speedtest
 from Modules.we import MYWE
 from Modules.connection import SQLiteDB
 from Modules.email import Email
 from Modules.progress import(
     ProgressGroup,
-    OverAllProgress,
-    Procs,
-    STProgressBar,
-    WEProgressBar
+    Procs
 )
+import Modules.tables 
 import asyncio
 
 """
@@ -29,7 +25,6 @@ The Code is East Follow and Easy Manipulation
 The Code Made and tested on a Python 3.10
 """
 
-main_console = Console()
 
 def _db_subproc(db_table_name: str) -> list:
     result: list = SQLiteDB.get_table(db_table_name)
@@ -52,45 +47,42 @@ def _import_database_rows():
 
     return lines, settings, cc, indicators, email_receipients
 
-async def _start_mywe(lines):
-    _we_proc_lbl = Procs.add_task("[3] Start Internet Qouta Check")  # Create Process Task Label
-
-    [await MYWE.start(line) for line in lines]
-
-    Procs.stop_task(_we_proc_lbl)
-    Procs.update(
-        _we_proc_lbl,
-        description = f"[3] Start Internet Qouta Check",
-        completed=True, finished_time=True)
-
 if __name__ == "__main__":
     if os.name == 'nt':
         os.system("cls")
     print("")
 
-    with Live(ProgressGroup, refresh_per_second=30, vertical_overflow="visible") as live:
-        print = live.console.print
+    live = Live(ProgressGroup, refresh_per_second=2, vertical_overflow="visible")
+    live.start()
+    """
+    Import DataBase Tables
+    and Create Empty Rows
+    """
+    lines, settings, cc, indicators, email_receipients = _import_database_rows()
 
-        """
-        Import DataBase Tables
-        and Create Empty Rows
-        """
-        lines, settings, cc, indicators, email_receipients = _import_database_rows()
+    [SQLiteDB.create_today_row(line) for line in lines]  # Create Empty Today Rows
+    
+    """
+    Start Speedtest and MYWE Scraping
+    Speedtest Will Running all at once (asyncio approach)
+    MYWE Will start at the same time of Speedtest but sequence
+    """
+    async def st_mywe_start():
+        task1 = asyncio.create_task(Speedtest.start(lines))
+        task2 = asyncio.create_task(MYWE.start(lines))
 
-        [SQLiteDB.create_today_row(line) for line in lines]  # Create Empty Today Rows
-        
-        """
-        Start Speedtest and MYWE Scraping
-        Speedtest Will Running all at once (asyncio approach)
-        MYWE Will start at the same time of Speedtest but sequence
-        """
-        async def st_mywe_start():
-            tasks: list = [Speedtest.start(lines, cc), _start_mywe(lines) ]
-            await asyncio.gather(*tasks)
-        asyncio.run(st_mywe_start())
-        
-        
-        lines_result = SQLiteDB.get_today_results(lines)
-        Email.start(lines_result, settings, email_receipients)
+        await task1
+        await task2
+
+    asyncio.run(st_mywe_start())
+
+    live.stop()
+    sleep(2)
+
+    lines_result = SQLiteDB.get_today_results(lines)
+
+    Modules.tables.print_result(lines_result)
+
+    Email.start(lines_result, settings, email_receipients)
 
 
