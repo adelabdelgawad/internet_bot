@@ -1,9 +1,8 @@
 from datetime import date
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.utils import formataddr
 import smtplib
-import ssl
+from email.message import EmailMessage
+from email.utils import formataddr
+
 from typing import NewType
 
 HTMLColor = NewType("HTMLColor", int)
@@ -114,6 +113,54 @@ def convert_result_to_html(result: list, indicators: dict) -> HTMLTable:
                 Color: {balance_color};">{str(balance)}</td>
             </tr>"""
 
+def html_table(rows) -> None:
+    return f"""\
+        <table border="1" cellspacing="0" style="border-collapse:collapse; margin-left:auto; margin-right:auto;">
+        <tbody>
+
+        <tr>
+        <td style="width: 120px; height:50"; bgcolor="#ff9900">
+        <h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">Number</span></span></strong></h3></td>
+
+        <td style="width: 80px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">Name</span></span></strong></h3></td>
+
+        <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">ISP</span></span></strong></h3></td>
+
+        <td style="width: 320px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">Line Used For</span></span></strong></h3></td>
+
+        <td style="width: 70px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">D.L</span></span></strong></h3></td>
+
+        <td style="width: 80px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">U.L</span></span></strong></h3></td>
+
+        <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <Color: #000000;"><span style="font-family:Calibri,&quot;sans-serif&quot;;">Used</span></span></strong></h3></td>
+
+        <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">Remaining</span></span></strong></h3></td>
+
+        <td style="width: 150px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">Usage</span></span></strong></h3></td>
+
+        <td style="width: 200px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <span style="font-family:Calibri,&quot;sans-serif&quot;;">Renewal Date</span></span></strong></h3></td>
+
+        <td style="width: 120px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <Color: #000000;"><span style="font-family:Calibri,&quot;sans-serif&quot;;">Balance</span></span></strong></h3></td>
+        </tr>
+
+        {rows}
+
+        </tbody>
+        </table>
+        <p>&nbsp;</p>
+        """
+
 class Email:
     @classmethod
     def start(cls, results: list[dict], settings: list[dict], recipients: list, indicators: list[dict]) -> None:
@@ -128,93 +175,27 @@ class Email:
         The Connecter to SMTP Server and Email Sender
          Using GMAIL Connection
         """
-        sender_alias: str = config['sender_alias']
-        sender: str = config['sender']
-        password: str = config['password']
-        subject: str = config['email_subject']
+        msg = EmailMessage()
+        msg['Subject'] = config['email_subject']
+        msg['From'] = formataddr(("Netowork Automation", config['sender']))
+        msg['To'] = recipients
+        msg['Alias'] 
 
-        mail_body = " ".join([Email.html_table(table)])
-        
-
-        message = MIMEMultipart("alternative")
-        message["Subject"] = subject
-        message["From"] = formataddr((sender_alias, sender))
-        message["To"] = ", ".join(recipients)
-
-        html = f"""\
+        msg.add_alternative(f"""\
         <p><span style="font-size:20px"><strong><Color: #000000;"><span style="font-family:Comic Sans MS,cursive"> {str(date.today())} </span></strong></span></p>
 
         <!DOCTYPE html>
         <html>
             <body>
-            {mail_body}
+            {" ".join([Email.html_table(table)])}
             </body>
         </html>
-        """
-        # Turn these into plain/html MIMEText objects
-        part2 = MIMEText(html, "html")
+        """, subtype='html')
 
-        # Add HTML/plain-text parts to MIMEMultipart message
-        # The email client will try to render the last part first
-        message.attach(part2)
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(config['sender'], config['password'])
+            smtp.send_message(msg)
+            print('Email Sent \n Done')
 
-        # Create secure connection with server and send email
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(sender, password)
-            server.sendmail(
-                sender, recipients, message.as_string()
-            )
-
-        print('Email Sent \n Done')
-
-    def html_table(rows) -> None:
-        return f"""\
-            <table border="1" cellspacing="0" style="border-collapse:collapse; margin-left:auto; margin-right:auto;">
-            <tbody>
-
-            <tr>
-            <td style="width: 120px; height:50"; bgcolor="#ff9900">
-            <h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Number</span></span></strong></h3></td>
-
-            <td style="width: 80px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Name</span></span></strong></h3></td>
-
-            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">ISP</span></span></strong></h3></td>
-
-            <td style="width: 320px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Line Used For</span></span></strong></h3></td>
-
-            <td style="width: 70px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">D.L</span></span></strong></h3></td>
-
-            <td style="width: 80px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">U.L</span></span></strong></h3></td>
-
-            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <Color: #000000;"><span style="font-family:Calibri,&quot;sans-serif&quot;;">Used</span></span></strong></h3></td>
-
-            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Remaining</span></span></strong></h3></td>
-
-            <td style="width: 150px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Usage</span></span></strong></h3></td>
-
-            <td style="width: 200px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Renewal Date</span></span></strong></h3></td>
-
-            <td style="width: 120px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
-            <Color: #000000;"><span style="font-family:Calibri,&quot;sans-serif&quot;;">Balance</span></span></strong></h3></td>
-            </tr>
-
-            {rows}
-
-            </tbody>
-            </table>
-            <p>&nbsp;</p>
-            """
-   
 if __name__ == "__main__":
     Email.send('smhit.bkp@gmail.com', "baypifdcneetnqio", "adel.aly@andalusiagroup.net", "test")

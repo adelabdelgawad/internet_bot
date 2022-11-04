@@ -55,26 +55,26 @@ if __name__ == "__main__":
     """
     lines, settings, cc, indicators, email_receipients = _import_database_rows()
 
-    p = asyncio.run(SQLiteDB.fetch_yesterday_result(lines[0], 'used'))
+    # p = asyncio.run(SQLiteDB.fetch_yesterday_result(lines[0], 'used'))
 
-    [SQLiteDB.create_today_row(line) for line in lines]  # Create Empty Today Rows
+    # [SQLiteDB.create_today_row(line) for line in lines]  # Create Empty Today Rows
     
-    """
-    Start Speedtest and MYWE Scraping
-    Speedtest Will Running all at once (asyncio approach)
-    MYWE Will start at the same time of Speedtest but sequence
-    """
-    async def st_mywe_start():
-        task1 = asyncio.create_task(Speedtest.start(lines))
-        task2 = asyncio.create_task(MYWE.start(lines))
+    # """
+    # Start Speedtest and MYWE Scraping
+    # Speedtest Will Running all at once (asyncio approach)
+    # MYWE Will start at the same time of Speedtest but sequence
+    # """
+    # async def st_mywe_start():
+    #     task1 = asyncio.create_task(Speedtest.start(lines))
+    #     task2 = asyncio.create_task(MYWE.start(lines))
 
-        await task1
-        await task2
+    #     await task1
+    #     await task2
 
-    asyncio.run(st_mywe_start())
+    # asyncio.run(st_mywe_start())
 
-    live.stop()
-    sleep(2)
+    # live.stop()
+    # sleep(2)
 
     lines_result = SQLiteDB.get_today_results(lines)
 
