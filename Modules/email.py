@@ -4,52 +4,145 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 import smtplib
 import ssl
+from typing import NewType
+
+HTMLColor = NewType("HTMLColor", int)
+HTMLTable = NewType("HTMLTable", int)
+
+
+def coloring_result(item: int, condition: str, indicator: int) -> HTMLColor:
+    """
+    Coloring Result Color Variable Based on Indicator as a Limit
+     The indicator limits taken from the DataBase Indicators_limit Table
+    Condition Should be < or >
+    """
+    try:
+        if condition == ">":
+            if int(item) > indicator:
+                return '#ff0000'
+            else:
+                return '#000000'
+
+        if condition == "<":
+            if int(item) < indicator:
+                return '#ff0000'
+            else:
+                return '#000000'
+    except Exception as ex:
+        return '#000000'
+
+def add_symbol_to_result(item: str, symbol: str):
+    """
+    Take An integer Item and retrieve the result with Symbol 
+     For Example GB or %
+    """
+    if item:
+        return (f"{item} {symbol}")
+
+def convert_result_to_html(result: list, indicators: dict) -> HTMLTable:
+    """
+    Take List of results and convert it to HTML Row
+     Coloring the results based on Indicators
+      Append Each Created html row to The Email's rows list
+    """
+    used_color: HTMLColor = coloring_result(
+        result['used_percentage'], ">", indicators['maximum_used_percentage']
+        )
+
+    remaining_color: HTMLColor = coloring_result(
+        result['used_percentage'], ">", indicators['maximum_used_percentage']
+        )
+
+    usage_color: HTMLColor = coloring_result(
+        result['usage'], ">", indicators['maximum_usage']
+        )
+
+    balance_color: HTMLColor = coloring_result(
+        result['balance'], "<", indicators['minimum_balance']
+        )
+
+    used_percentage: str = add_symbol_to_result(result['used_percentage'], "%")
+    remaining = add_symbol_to_result(result['remaining'], "GB")
+    usage = add_symbol_to_result(result['usage'], "GB")
+    balance = add_symbol_to_result(result['balance'], "LE")
+    return f"""\
+        <tr>
+                <td style="height:25px; text-align:center; width:40px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: #000000;">{result['line_number']}</td>
+
+                <td style="height:25px; text-align:center; width:40px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: #000000;">{result['line_name']}</td>
+
+                <td style="height:25px; text-align:center; width:40px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: #000000;">{result['isp']}</td>
+
+
+                <td style="height:25px; text-align:center; width:40px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: #000000;">{result['line_using']}</td>
+
+
+                <td style="height:25px; text-align:center; width:40px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: #000000;">{result['download']}</td>
+
+                <td style="height:25px; text-align:center; width:40px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: #000000;">{result['upload']}</td>
+
+                <td style="height:25px; text-align:center; width:60px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: {used_color};">{str(used_percentage)}</td>
+
+                <td style="height:25px; text-align:center; width:70px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: {remaining_color};">{remaining}</td>
+
+                <td style="height:25px; text-align:center; width:70px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: {usage_color};">{str(usage)}</td>
+
+                <td style="height:25px; text-align:center; width:70px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: #000000;">{result["renew_date"]}</td>
+
+                <td style="height:25px; text-align:center; width:60px">
+                <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
+                Color: {balance_color};">{str(balance)}</td>
+            </tr>"""
 
 class Email:
-    table_rows: list = []
-
     @classmethod
-    def start(cls, results, settings, recipients):
-        Email.convert(results)
-        table: list = " ".join(Email.table_rows)
-        [Email.send(settings, recipient['email'], table) for recipient in recipients]  # Send Email
+    def start(cls, results: list[dict], settings: list[dict], recipients: list, indicators: list[dict]) -> None:
+        """
+        Constructing Email in HTML Table Format and Send it to Recipients List
+        """
+        table: list = " ".join(convert_result_to_html(result, indicators) for result in results)
+        Email.send(settings, recipients, table)
 
-
-    def send(config, receiver, table) -> None:
+    def send(config, recipients, table) -> None:
+        """
+        The Connecter to SMTP Server and Email Sender
+         Using GMAIL Connection
+        """
         sender_alias: str = config['sender_alias']
         sender: str = config['sender']
         password: str = config['password']
         subject: str = config['email_subject']
 
-        mail_body: list = []  # list will contain the results and used in email
-        mail_body.append(Email.created_table(table))
-        mail_body = " ".join(mail_body)
+        mail_body = " ".join([Email.html_table(table)])
         
 
-
-
-        #######################################
-        # Beginning of email script
-        #######################################
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
         message["From"] = formataddr((sender_alias, sender))
-        message["To"] = receiver
-        message["Cc"] = ""
+        message["To"] = ", ".join(recipients)
 
-        # Create the plain-text and HTML version of your message
-        text = """\
-        Hi,
-        How are you?
-        Real Python has many great tutorials:
-        www.realpython.com"""
-        html = """\
-        Hi,
-        How are you?
-        Real Python has many great tutorials:
-        www.realpython.com"""
         html = f"""\
-        <p><span style="font-size:16px"><strong><span style="font-family:Comic Sans MS,cursive"> {str(date.today())} </span></strong></span></p>
+        <p><span style="font-size:20px"><strong><Color: #000000;"><span style="font-family:Comic Sans MS,cursive"> {str(date.today())} </span></strong></span></p>
 
         <!DOCTYPE html>
         <html>
@@ -59,12 +152,10 @@ class Email:
         </html>
         """
         # Turn these into plain/html MIMEText objects
-        part1 = MIMEText(text, "plain")
         part2 = MIMEText(html, "html")
 
         # Add HTML/plain-text parts to MIMEMultipart message
         # The email client will try to render the last part first
-        message.attach(part1)
         message.attach(part2)
 
         # Create secure connection with server and send email
@@ -72,153 +163,58 @@ class Email:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
             server.login(sender, password)
             server.sendmail(
-                sender, receiver, message.as_string()
+                sender, recipients, message.as_string()
             )
+
         print('Email Sent \n Done')
-    # Method will used on each if statment
-    # To create table for each site
-    def created_table(value) -> None:
+
+    def html_table(rows) -> None:
         return f"""\
             <table border="1" cellspacing="0" style="border-collapse:collapse; margin-left:auto; margin-right:auto;">
             <tbody>
 
             <tr>
             <td style="width: 120px; height:50"; bgcolor="#ff9900">
-            <h3 style="text-align:center"><strong><span style="font-size:14pt">
+            <h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
             <span style="font-family:Calibri,&quot;sans-serif&quot;;">Number</span></span></strong></h3></td>
 
-            <td style="width: 80px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">Name</span></span></strong></h3></td>
+            <td style="width: 80px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Name</span></span></strong></h3></td>
 
-            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">ISP</span></span></strong></h3></td>
+            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">ISP</span></span></strong></h3></td>
 
-            <td style="width: 320px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">Line Used For</span></span></strong></h3></td>
+            <td style="width: 320px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Line Used For</span></span></strong></h3></td>
 
-            <td style="width: 70px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">D.L</span></span></strong></h3></td>
+            <td style="width: 70px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">D.L</span></span></strong></h3></td>
 
-            <td style="width: 70px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">U.L</span></span></strong></h3></td>
+            <td style="width: 80px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">U.L</span></span></strong></h3></td>
 
-            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Used</span></span></strong></h3></td>
+            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <Color: #000000;"><span style="font-family:Calibri,&quot;sans-serif&quot;;">Used</span></span></strong></h3></td>
 
-            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">Remaining</span></span></strong></h3></td>
+            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Remaining</span></span></strong></h3></td>
 
-            <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">Consumed</span></span></strong></h3></td>
+            <td style="width: 150px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Usage</span></span></strong></h3></td>
 
-            <td style="width: 200px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong> <span style="font-size:14pt">
-            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Next Renew
-            </span></span></strong></h3></td>
+            <td style="width: 200px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <span style="font-family:Calibri,&quot;sans-serif&quot;;">Renewal Date</span></span></strong></h3></td>
 
-            <td style="width: 120px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt"> <span
-            style="font-family:Calibri,&quot;sans-serif&quot;;">Balance</span></span></strong></h3></td>
+            <td style="width: 120px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+            <Color: #000000;"><span style="font-family:Calibri,&quot;sans-serif&quot;;">Balance</span></span></strong></h3></td>
             </tr>
 
-            {value}
+            {rows}
 
             </tbody>
             </table>
             <p>&nbsp;</p>
             """
-
-    @classmethod
-    def convert(cls, results: list) -> None:
-        for result in results:
-            black_color = '#000000'
-            red_color = '#ff0000'
-
-            line_number_color: str = black_color
-            line_name_color: str = black_color
-            isp_color: str = black_color
-            used_color: str = black_color
-            remaining_color: str = black_color
-            consumed_color: str = black_color
-            balance_color: str = black_color
-            
-            if result['isp'] == 'WE':
-                line_number_color, line_name_color, isp_color = black_color, black_color, black_color
-            try:
-                if int(result['used_percentage']) > 70:
-                    used_color, remaining_color = red_color
-            except: pass
-
-            try:
-                if int(result['consumed']) > 50:
-                    consumed_color = red_color
-            except: pass
-
-            try:
-                if int(result['balance']) < 1000:
-                    balance_color = red_color
-            except:
-                pass
-
-            if result['used_percentage']:
-                used_percentage = f"{result['used_percentage']}%"
-            if result['remaining']:
-                remaining = f"{result['remaining']} GB"
-            if result['consumed']:
-                consumed = f"{result['consumed']} GB"
-            if result['balance']:
-                balance = f"{result['balance']} LE"
-            
-            Email.table_rows.append(
-        f"""\
-                <tr>
-                    <td style="height:25px; text-align:center; width:40px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: {line_number_color};">{result['line_number']}</td>
-
-                    <td style="height:25px; text-align:center; width:40px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: {line_name_color};">{result['line_name']}</td>
-
-                    <td style="height:25px; text-align:center; width:40px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: {isp_color};">{result['isp']}</td>
-
-
-                    <td style="height:25px; text-align:center; width:40px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: #000000;">{result['line_using']}</td>
-
-
-                    <td style="height:25px; text-align:center; width:40px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: #000000;">{result['download']}</td>
-
-                    <td style="height:25px; text-align:center; width:40px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: #000000;">{result['upload']}</td>
-
-                    <td style="height:25px; text-align:center; width:60px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: {used_color};">{str(result['used_percentage'])}</td>
-
-                    <td style="height:25px; text-align:center; width:70px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: {remaining_color};">{str(result['remaining'])}</td>
-
-                    <td style="height:25px; text-align:center; width:70px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: {consumed_color};">{str(result['consumed'])}</td>
-
-                    <td style="height:25px; text-align:center; width:70px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: #000000;">{result["renew_date"]}</td>
-
-                    <td style="height:25px; text-align:center; width:60px">
-                    <span style="font-family:Calibri,&quot;sans-serif&quot;; font-size:14pt;
-                    Color: {balance_color};">{str(result['balance'])}</td>
-
-                </tr>
-                """
-                )
    
 if __name__ == "__main__":
     Email.send('smhit.bkp@gmail.com', "baypifdcneetnqio", "adel.aly@andalusiagroup.net", "test")

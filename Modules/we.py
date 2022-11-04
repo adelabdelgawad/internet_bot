@@ -59,7 +59,7 @@ class MYWE():
             soup = BeautifulSoup(html, 'html.parser')
             WEProgressBar.update(QUOTATASK, advance=1)
             USED = await MYWE._grab_and_add_to_db(line, soup, 'usage-details', ' Used', 'used')
-            CONSUMED = await MYWE._consumed_calculation(USED, line)
+            usage = await MYWE._usage_calculation(USED, line)
             REMAINING = await MYWE._grab_and_add_to_db(line, soup, 'remaining-details', ' Remaining', 'remaining')
             USED_PERCENTAGE = await MYWE._used_percentage(line, REMAINING)
             BALANCE = await MYWE._grab_and_add_to_db(line, soup, 'font-26px', ' ', 'balance')
@@ -67,7 +67,7 @@ class MYWE():
             RENEWAL = await MYWE._grab_renewal_and_add_to_db(browser, line, 'renew_date')
             CREDIT_TRANSCATION = await MYWE._credit_transaction(line)
             RENEWA_STATUS = await MYWE._renew_status(CREDIT_TRANSCATION, line)
-            COnsumed = await MYWE._renew_status(CREDIT_TRANSCATION, line)
+            usage = await MYWE._renew_status(CREDIT_TRANSCATION, line)
 
             WEProgressBar.update(QUOTATASK, advance=1)
             browser.quit()
@@ -155,7 +155,7 @@ class MYWE():
                         await SQLiteDB.add_result_to_today_line_row(line, result)
 
     @classmethod
-    async def _consumed_calculation(cls, used: int, line: dict) -> dict:
+    async def _usage_calculation(cls, used: int, line: dict) -> dict:
         last_used = await SQLiteDB.get_old_value(line, 'used')
         if last_used:
             start = await SQLiteDB.get_old_value(line, 'time')
@@ -163,12 +163,12 @@ class MYWE():
             end =   datetime.strptime(date, "%d-%m-%Y | %H:%M")
             diff = end - start
             diff = int(diff.total_seconds() / 3600)
-            consumed = int(used) - int(last_used)
-            if int(consumed) > 0:
-                result = f"consumed={consumed}"
+            usage = int(used) - int(last_used)
+            if int(usage) > 0:
+                result = f"usage={usage}"
                 await SQLiteDB.add_result_to_today_line_row(line, result)
                 result = f"dif_hours={diff}"
                 await SQLiteDB.add_result_to_today_line_row(line, result)
             return
-        result = f"consumed=''"
+        result = f"usage=''"
         await SQLiteDB.add_result_to_today_line_row(line, result)

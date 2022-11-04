@@ -47,7 +47,7 @@ class DataBase:
             conn.row_factory = dict_factory
             return conn.execute(f"SELECT * FROM {table_name}").fetchall()
 
-    async def fetch_yesterday_result(self, line: dict) -> dict:
+    async def fetch_yesterday_result(self, line: dict, value: str) -> dict:
         """
         Asycio Method to Fetch Table as Dict
          Key: column description
@@ -57,9 +57,10 @@ class DataBase:
             db = await aiosqlite.connect(self.db)
             db.row_factory = dict_factory
             cursor = await db.execute(
-                f"""SELECT * FROM results WHERE line_name='{line['line_name']}'
-                AND date='{yesterday}' ORDER BY id DESC"""
-                )
+                f"""SELECT {value} FROM results where line_name = '{line['line_name']}' and date= '{today}' 
+                LAG {value} OVER (PARTITION BY {line['line_name']} ORDER BY id) AS previous_value
+                ORDER id
+                """)
             result = await cursor.fetchone()
             print(f"p: {result}")
             await db.close()

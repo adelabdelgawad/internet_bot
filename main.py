@@ -5,10 +5,8 @@ from Modules.st import Speedtest
 from Modules.we import MYWE
 from Modules.connection import SQLiteDB
 from Modules.email import Email
-from Modules.progress import(
-    ProgressGroup,
-    Procs
-)
+from Modules.progress import ProgressGroup
+from Modules.progress import Procs
 import Modules.tables 
 import asyncio
 
@@ -25,19 +23,15 @@ The Code is East Follow and Easy Manipulation
 The Code Made and tested on a Python 3.10
 """
 
-
-def _db_subproc(db_table_name: str) -> list:
-    result: list = SQLiteDB.get_table(db_table_name)
-    return result
-
 def _import_database_rows():
     _db_proc_lbl = Procs.add_task("[1] Import DataBase Tables")  # Create Process Task Label
 
-    lines: list = _db_subproc("lines")
-    settings: list = _db_subproc('settings')[0]
+    lines: list = SQLiteDB.get_table("lines")
+    settings: list = SQLiteDB.get_table('settings')[0]
     cc: int = settings['concurrency_count']  # Uses in SpeedTest
-    indicators: list = _db_subproc('indicators_limit')[0]
-    email_receipients: list = _db_subproc('email_receipients')
+    indicators: list = SQLiteDB.get_table('indicators_limit')[0]
+    email_receipients: list = SQLiteDB.get_table('email_receipients')
+    email_receipients = [receipient['email'] for receipient in email_receipients]
 
     Procs.stop_task(_db_proc_lbl)
     Procs.update(
@@ -60,13 +54,8 @@ if __name__ == "__main__":
     and Create Empty Rows
     """
     lines, settings, cc, indicators, email_receipients = _import_database_rows()
-    print(f" s : {lines[0]}")
 
-    p = asyncio.run(SQLiteDB.fetch_yesterday_result(lines[0]))
-    print("s")
-    print(p)
-    
-    sleep(60)
+    p = asyncio.run(SQLiteDB.fetch_yesterday_result(lines[0], 'used'))
 
     [SQLiteDB.create_today_row(line) for line in lines]  # Create Empty Today Rows
     
@@ -91,6 +80,6 @@ if __name__ == "__main__":
 
     Modules.tables.print_result(lines_result)
 
-    Email.start(lines_result, settings, email_receipients)
+    Email.start(lines_result, settings, email_receipients, indicators)
 
 
