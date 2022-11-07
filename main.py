@@ -26,12 +26,10 @@ The Code Made and tested on a Python 3.10
 def _import_database_rows():
     _db_proc_lbl = Procs.add_task("[1] Import DataBase Tables")  # Create Process Task Label
 
-    lines: list = SQLiteDB.get_table("lines")
-    settings: list = SQLiteDB.get_table('settings')[0]
-    cc: int = settings['concurrency_count']  # Uses in SpeedTest
-    indicators: list = SQLiteDB.get_table('indicators_limit')[0]
-    email_receipients: list = SQLiteDB.get_table('email_receipients')
-    email_receipients = [receipient['email'] for receipient in email_receipients]
+    lines: list = SQLiteDB.select_table("LinesData")
+    indicators: list = SQLiteDB.select_table('Indicators')[0]
+    email_receipients: list = SQLiteDB.select_table('ReceipientsList')
+    email_receipients = [receipient['EMail'] for receipient in email_receipients]
 
     Procs.stop_task(_db_proc_lbl)
     Procs.update(
@@ -39,7 +37,7 @@ def _import_database_rows():
         description = f"[green][1] Import DataBase Tables",
         completed=True, finished_time=True)
 
-    return lines, settings, cc, indicators, email_receipients
+    return lines, indicators, email_receipients
 
 
 if __name__ == "__main__":
@@ -53,33 +51,35 @@ if __name__ == "__main__":
     Import DataBase Tables
     and Create Empty Rows
     """
-    lines, settings, cc, indicators, email_receipients = _import_database_rows()
-
-    # p = asyncio.run(SQLiteDB.fetch_yesterday_result(lines[0], 'used'))
+    lines, indicators, email_receipients = _import_database_rows()
 
     # [SQLiteDB.create_today_row(line) for line in lines]  # Create Empty Today Rows
     
-    # """
-    # Start Speedtest and MYWE Scraping
-    # Speedtest Will Running all at once (asyncio approach)
-    # MYWE Will start at the same time of Speedtest but sequence
-    # """
-    # async def st_mywe_start():
-    #     task1 = asyncio.create_task(Speedtest.start(lines))
-    #     task2 = asyncio.create_task(MYWE.start(lines))
+    """
+    Start Speedtest and MYWE Scraping
+    Speedtest Will Running all at once (asyncio approach)
+    MYWE Will start at the same time of Speedtest but sequence
+    """
 
-    #     await task1
-    #     await task2
+    async def st_mywe_start():
+        task1 = asyncio.create_task(Speedtest.start(lines))
+        task2 = asyncio.create_task(MYWE.start(lines))
 
-    # asyncio.run(st_mywe_start())
+        await task1
+        await task2
 
-    # live.stop()
-    # sleep(2)
+    asyncio.run(st_mywe_start())
 
-    lines_result = SQLiteDB.get_today_results(lines)
+    # asyncio.run(MYWE.start(lines))
 
+    live.stop()
+
+    lines_result = [SQLiteDB.select_current_result(line) for line in lines]
     Modules.tables.print_result(lines_result)
 
-    Email.start(lines_result, settings, email_receipients, indicators)
+    Email.start(lines_result, email_receipients, indicators)
+
+    print("Press Enter to continue ..." )
+    input()
 
 

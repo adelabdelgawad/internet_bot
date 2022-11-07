@@ -4,9 +4,15 @@ from .progress import (
     Procs,
     STProgressBar
 )
+from datetime import timedelta
+from datetime import datetime
 from .connection import SQLiteDB
 from .shell import Shell
 import os
+
+today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
+now = datetime.now()
+now = now.strftime("%d-%m-%Y %H:%M")
 
 class Speedtest:
     """
@@ -20,15 +26,15 @@ class Speedtest:
         """
         Speedtest Executer Method
         """
-        ST_PB = STProgressBar.add_task(f"{line['ip_address']} Speedtest", total=3)
+        ST_PB = STProgressBar.add_task(f"{line['IPAddress']} Speedtest", total=3)
 
         ping, download, upload = 0, 0, 0  # Default Values in case no captured
         downloads, uploads, pings = set(), set(), set()  # Sets to Containt Values
 
         if os.name == 'nt': # Windows
-            cmd = f"python speedtest.py --csv --secure --source {line['ip_address']}"
+            cmd = f"python speedtest.py --csv --secure --source {line['IPAddress']}"
         else:   # Other Os
-            cmd = f"speedtest --csv --secure --source {line['ip_address']}"
+            cmd = f"speedtest --csv --secure --source {line['IPAddress']}"
 
         for _ in range(3):
             try:
@@ -42,9 +48,9 @@ class Speedtest:
                     except:
                         pass
                 if stderr:
-                    print(f"[red]{line['ip_address']}: {stderr}")
+                    print(f"[red]{line['IPAddress']}: {stderr}")
             except Exception as ex:
-                print(f"[red]{line['ip_address']}: {ex}")
+                print(f"[red]{line['IPAddress']}: {ex}")
             finally:
                 pings.add(ping)
                 downloads.add(download)
@@ -53,8 +59,18 @@ class Speedtest:
 
         STProgressBar.stop_task(ST_PB)
 
-        result = f"ping='{max(pings)}', upload='{max(uploads)}', download='{max(downloads)}'"
-        await SQLiteDB.add_result_to_today_line_row(line, result)
+        result: dict = {
+            "LineID": line['LineID'],
+            "Ping": max(pings),
+            "Upload": max(uploads),
+            "Download": max(downloads),
+            "Date": today,
+            "TimeDate": now
+            }
+
+        await SQLiteDB.insert_result(
+            "SpeedTestResult", result
+        )
     
     @classmethod
     async def start(cls, lines: list[dict])-> None:

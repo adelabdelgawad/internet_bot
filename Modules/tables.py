@@ -22,14 +22,14 @@ def print_result(lines_result: list):
 
     for line in lines_result:
         table.add_row(
-            f"{line['line_name']}",
-            f"{line['ping']} ms",
-            f"{line['upload']} mb/s",
-            f"{line['download']} mb/s",
-            f"{line['used']} GB - {line['used_percentage']}%",
-            f"{line['remaining']} GB",
-            f"{line['renew_date']}",
-            f"{line['balance']} LE",
+            f"{line['LineName']}",
+            f"{line['Ping']} ms",
+            f"{line['Upload']} mb/s",
+            f"{line['Download']} mb/s",
+            f"{line['Used']} GB - {line['UsedPercentage']}%",
+            f"{line['Remaining']} GB",
+            f"{line['RenewalDate']}",
+            f"{line['Balance']} LE",
         )
     console = Console()
     console.print(table)
