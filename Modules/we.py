@@ -24,6 +24,16 @@ ClassID = NewType("ClassID", str)
 SeleniumDriver = NewType("SeleniumDriver", str)
 DB_RowID = NewType("DB_RowID", str)
 
+async def driver():
+    driver_exe = 'chromedriver'  # assign Path
+    await asyncio.sleep(.2)
+    options = webdriver.ChromeOptions()
+    await asyncio.sleep(.2)
+    options.add_argument("--headless")  # Open chome hidden
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    return  webdriver.Chrome(executable_path=driver_exe, options=options)
+
+
 class MYWE():
     succeed: list = []
     faild: list = []
@@ -59,13 +69,7 @@ class MYWE():
         credit_transaction: str = ''
         renewal_status: str = ''
 
-        driver_exe = 'chromedriver'  # assign Path
-        await asyncio.sleep(.2)
-        options = webdriver.ChromeOptions()
-        await asyncio.sleep(.2)
-        options.add_argument("--headless")  # Open chome hidden
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        browser =  webdriver.Chrome(executable_path=driver_exe, options=options)
+        browser = await driver()
 
         if await MYWE.logged(browser, line, QUOTATASK):
             html = browser.page_source

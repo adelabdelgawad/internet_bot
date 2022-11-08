@@ -1,5 +1,7 @@
 from datetime import date
-import smtplib
+from email.message import EmailMessage
+import asyncio
+import aiosmtplib
 from email.utils import formataddr
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -120,7 +122,12 @@ def convert_result_to_html(result: list, indicators: dict) -> HTMLTable:
                 Color: {balance_color};">{str(balance)}</td>
             </tr>"""
 
-def html_table(rows) -> None:
+async def html_table(rows: list[HTMLTable]) -> None:
+    """
+    Take Table Rows and Return HTML Mail Body
+    :parm:
+    rows: list -> Results after converted to html table
+    """
     return f"""\
         <table border="1" cellspacing="0" style="border-collapse:collapse; margin-left:auto; margin-right:auto;">
         <tbody>
@@ -161,7 +168,7 @@ def html_table(rows) -> None:
         <td style="width: 100px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
         <span style="font-family:Calibri,&quot;sans-serif&quot;;">Remaining</span></span></strong></h3></td>
 
-        <td style="width: 180px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
+        <td style="width: 210px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
         <span style="font-family:Calibri,&quot;sans-serif&quot;;">Consumption</span></span></strong></h3></td>
 
         <td style="width: 200px"; bgcolor="#ff9900"><h3 style="text-align:center"><strong><span style="font-size:14pt; Color: #000000;">
@@ -178,46 +185,40 @@ def html_table(rows) -> None:
         <p>&nbsp;</p>
         """
 
+
 class Email:
     @classmethod
-    def start(cls, results: list[dict], recipients: list, indicators: list[dict]) -> None:
+    async def start(cls, results: list[dict], settings: list[dict], indicators: list[dict]) -> None:
         """
         Constructing Email in HTML Table Format and Send it to Recipients List
         """
         table: list = " ".join(convert_result_to_html(result, indicators) for result in results)
-        Email.send(recipients, table)
+        await (Email.send(settings, table))
 
-    def send(recipients, table) -> None:
+    async def send(settings: list[dict], table: HTMLTable) -> None:
         """
         The Connecter to SMTP Server and Email Sender
-         Using GMAIL Connection
         """
+        message = EmailMessage()
+        message['From'] = formataddr(
+            (settings['SenderAlias'], settings['Sender'])
+            )
+        message['To'] = settings['Receipients']
+        message['Subject'] = settings['Subject']
+        message['CC'] = settings['CC']
 
-        msg = MIMEMultipart('alternative')  
-        sender = 'smh-portal@andalusiagroup.net'
-        alias = 'Netowork Automation'
-        subject = "SMH Daily InternetCheck"
-
-        msg['From'] = formataddr((alias, sender))
-        msg['To'] = ','.join(recipients)
-        msg['Subject'] = subject
-        msg['CC'] = 'Adel.aly@andalusiagroup.net'
-
-        html = (f"""\
+        message.add_alternative(f"""\
         <p><span style="font-size:20px"><strong><Color: #000000;"><span style="font-family:Comic Sans MS,cursive"> {str(date.today())} </span></strong></span></p>
 
         <!DOCTYPE html>
         <html>
             <body>
-            {" ".join([html_table(table)])}
+            {" ".join([await html_table(table)])}
             </body>
         </html>
-        """)
-        msg.attach(MIMEText(html, 'html'))
+        """, subtype='html')
 
-        s = smtplib.SMTP('smh-ex-03')
-        s.sendmail(sender,recipients, msg.as_string())
-        s.quit() 
+        await aiosmtplib.send(message, hostname=settings['SMTPServer'], port=25)
 
 if __name__ == "__main__":
     Email.send('smhit.bkp@gmail.com', "baypifdcneetnqio", "adel.aly@andalusiagroup.net", "test")
