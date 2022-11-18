@@ -119,7 +119,7 @@ class MyWeBaseClass():
         except:
             pass
 
-    async def srape_renewdate_page(self) -> None:
+    async def scrap_renewdate_page(self) -> None:
         """
         Navigate to https://my.te.eg/offering/overview, 
         Returning RenewalDate and RenewalStatus
@@ -139,8 +139,14 @@ class MyWeBaseClass():
         """
         - Closes the browser and shuts down the ChromiumDriver executable
         that is started when starting the ChromiumDriver
-        """    
+        """
         self.browser.quit()
+        
+        # Append to Succeed or faild lists after the procees finished
+        if not(self.balance or self.used or self.remaining or self.renewal_date):
+            MyWeBaseClass.faild.append(self.line)
+        else:
+            MyWeBaseClass.succeed.append(self.line)
 
     @property
     async def result(self) -> dict:
@@ -242,7 +248,7 @@ async def start(lines: list[dict]):
             WEProgressBar.update(task_pb, advance=1)
             await MyWE.scrape_usage_page()
             WEProgressBar.update(task_pb, advance=1)
-            await MyWE.srape_renewdate_page()
+            await MyWE.scrap_renewdate_page()
             WEProgressBar.update(task_pb, advance=1)
         resut = await MyWE.result
         await SQLiteDB.insert_result('QuotaResult', resut)

@@ -1,12 +1,12 @@
 import asyncio
 from rich import print
-from .progress import (
+from ..rich_modules.progress import (
     Procs,
     STProgressBar
 )
 from datetime import timedelta
 from datetime import datetime
-from .connection import SQLiteDB
+from ..database.database import SQLiteDB
 from .shell import Shell
 import os
 

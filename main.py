@@ -3,13 +3,12 @@ import os
 import schedule
 from rich.live import Live
 from rich import print
-from Modules.st import Speedtest
-import Modules.we as MyWE
-from Modules.connection import SQLiteDB
-from Modules.email import Email
-from Modules.progress import ProgressGroup
-from Modules.progress import Procs
-import Modules.tables
+from Modules.speedtest.speedtest import Speedtest
+import Modules.quota.we as MyWE
+from Modules.database.database import SQLiteDB
+from Modules.email.email import Email
+from Modules.rich_modules.progress import ProgressGroup, Procs
+import Modules.rich_modules.tables as rich_table
 import asyncio
 import ctypes, sys
 
@@ -85,7 +84,7 @@ def main():
     live.stop()
 
     lines_result = [SQLiteDB.select_current_result(line) for line in lines]
-    Modules.tables.print_result(lines_result)
+    rich_table.print_result(lines_result)
 
     asyncio.run(Email.start(lines_result, setting, indicators))
 
