@@ -94,4 +94,3 @@ class Speedtest:
             description = f"[green][2] Starting Ookla Speedtest",
             completed=True, finished_time=True)
         
-

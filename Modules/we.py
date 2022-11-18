@@ -13,6 +13,7 @@ from .progress import (
     Procs,
     WEProgressBar
 )
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
@@ -24,187 +25,240 @@ ClassID = NewType("ClassID", str)
 SeleniumDriver = NewType("SeleniumDriver", str)
 DB_RowID = NewType("DB_RowID", str)
 
-async def driver():
-    driver_exe = 'chromedriver'  # assign Path
-    await asyncio.sleep(.2)
-    options = webdriver.ChromeOptions()
-    await asyncio.sleep(.2)
-    options.add_argument("--headless")  # Open chome hidden
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    return  webdriver.Chrome(executable_path=driver_exe, options=options)
+
+async def _manipulate_parsered_data(soup, element: ClassID, remove_text:str):
+    try:
+        item = soup.find(class_=element).text.replace(remove_text, ' ')
+        return int(float(item))
+    except:
+        return ' '
 
 
-class MYWE():
+class MyWeBaseClass():
+    """
+    MyWe WebScraping BaseClase.
+    ---------------------------
+
+    Scraping Performing Based on Selenuim Using Chrome Browser for Login,
+    and Pages Parsing Using BeautifullSoup Library
+    """
     succeed: list = []
     faild: list = []
 
-    @classmethod
-    async def start(cls, lines):
-        _we_proc_lbl = Procs.add_task("[3] Start Internet Qouta Check")  # Create Process Task Label
-
-        [await MYWE.start_scraping(line) for line in lines]
-
-        Procs.stop_task(_we_proc_lbl)
-        Procs.update(
-            _we_proc_lbl,
-            description = f"[green][3] Start Internet Qouta Check",
-            completed=True, finished_time=True)
-
-    @classmethod
-    async def start_scraping(cls, line: dict):
+    async def run_browser(self) -> None:
         """
-        Start MyWE Scraping Using Line Information
-        Args:
-         line: dic -> Line information
+        Start Chrome WebDriver 
         """
-        QUOTATASK = WEProgressBar.add_task(f"{line['LineName']} QuotaCheck", total=4) 
+        self.used: int = ' '
+        self.used_percentage: int = ' '
+        self.remaining: int = ' '
+        self.balance: int = ' '
+        self.usage: int = 0
+        self.hours: int = 0
+        self.credit_transaction: int = ' '
+        self.renewal_date: str = ' '
+        self.renewal_status: str = ' '
 
-        used: str = ''
-        used_percentage: str = ''
-        remaining: str = ''
-        balance: str = ''
-        renewal_date: str = ''
-        usage: str = ''
-        hours: str = ''
-        credit_transaction: str = ''
-        renewal_status: str = ''
+        self.browser = await self.driver
+        self.browser.set_page_load_timeout(5)
 
-        browser = await driver()
+    @property
+    async def driver(self) -> SeleniumDriver:
+        driver_exe = 'chromedriver'  # assign Path
+        await asyncio.sleep(.2)
+        options = webdriver.ChromeOptions()
+        await asyncio.sleep(.2)
+        options.add_argument("--headless")  # Open chome hidden
+        options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        return  webdriver.Chrome(
+            executable_path=driver_exe, options=options
+            )
 
-        if await MYWE.logged(browser, line, QUOTATASK):
-            html = browser.page_source
+    async def login(self, line) -> bool:
+        """
+        MYWE Portal Site Login, and Return True/False Based on the Login State
+        """
+        self.line: list[dict] = line
+        self.logged: bool = False
+
+        try:
+            self.browser.get("https://my.te.eg/user/login")  # Open WE Website
+            element_present = EC.presence_of_element_located(("id", "login-service-number-et"))
+            WebDriverWait(self.browser, 5).until(element_present)
+            self.browser.find_element("id", "login-service-number-et").send_keys(self.line['PortalUsername']) # Sending Username
+            await asyncio.sleep(.1)
+            self.browser.find_element("id", "login-password-et").send_keys(self.line['PortalPassword'])  # Sending Password
+            await asyncio.sleep(.1)
+            self.browser.find_element("id", "login-login-btn").click() # Click Login Button
+            element_present = EC.presence_of_element_located(("id", "welcome_card"))
+            WebDriverWait(self.browser, 7).until(element_present)
+            self.logged = True
+        except Exception as ex:
+            print(ex)
+            MyWeBaseClass.faild.append(self.line)
+
+    async def scrape_usage_page(self) -> None:
+        """
+        Parsing Account Overview page using BeautifulSoup technique [The First Page]
+         Returning used, remaining, balance, usage and used_percentage
+        """
+        try:
+            await asyncio.sleep(3)
+
+            html = self.browser.page_source
             soup = BeautifulSoup(html, 'html.parser')
-            WEProgressBar.update(QUOTATASK, advance=1)
 
-            used = await MYWE._manipulate_parsered_data(soup, 'usage-details', ' Used')
-            remaining = await MYWE._manipulate_parsered_data(soup, 'remaining-details', ' Remaining')
-            balance = await MYWE._manipulate_parsered_data(soup, 'font-26px', ' ')
-            WEProgressBar.update(QUOTATASK, advance=1)
+            # Automatic Return
+            self.used = await _manipulate_parsered_data(soup, 'usage-details', ' Used')
+            self.remaining = await _manipulate_parsered_data(soup, 'remaining-details', ' Remaining')
+            self.balance = await _manipulate_parsered_data(soup, 'font-26px', ' ')
 
-            renewal_date = await MYWE._renewal_date(browser)
-            WEProgressBar.update(QUOTATASK, advance=1)
+            # Manual Computing
+            self.used_percentage = await self._compute_used_percentage
+            self.credit_transaction = await self._compute_credit_transaction
 
-            browser.quit()
+            self.usage, self.hours = await self._compute_usage
+        except:
+            pass
 
-            used_percentage = await MYWE._used_percentage(used, remaining)
-            credit_transaction = await MYWE._credit_transaction(line, balance)
-            renewal_status = await MYWE._renewal_status(line, credit_transaction)
-            usage, hours = await MYWE._calculating_usage(line, used)
-            if usage and hours:
-                usage = int(float(usage))
-                hours = int(float(hours))
-            WEProgressBar.update(QUOTATASK, advance=1)
-        
-        result: dict = {
-            'LineID': line['LineID'],
-            'Used': used,
-            'UsedPercentage': used_percentage,
-            'Remaining': remaining,
-            'Balance': balance,
-            'Usage': usage,
-            'RenewalDate': renewal_date,
-            'Hours': hours,
+    async def srape_renewdate_page(self) -> None:
+        """
+        Navigate to https://my.te.eg/offering/overview, 
+        Returning RenewalDate and RenewalStatus
+        """
+        self.browser.get("https://my.te.eg/offering/overview")
+        try:
+            await asyncio.sleep(5)
+            html = self.browser.page_source
+            soup = BeautifulSoup(html, 'html.parser')
+            self.renewal_date= soup.find(class_='mr-auto').text[14:-19]
+            self.renewal_status = await self._compute_renewal_status
+            MyWeBaseClass.succeed.append(self.line)
+        except Exception as ex:
+            print(ex)
+
+    async def close_browser(self) -> None:
+        """
+        - Closes the browser and shuts down the ChromiumDriver executable
+        that is started when starting the ChromiumDriver
+        """    
+        self.browser.quit()
+
+    @property
+    async def result(self) -> dict:
+        if self.credit_transaction == 0:
+            self.credit_transaction = ''
+        if self.renewal_status == 0:
+            self.renewal_status = ''
+            
+        return {
+            'LineID': self.line['LineID'],
+            'Used': self.used,
+            'UsedPercentage': self.used_percentage,
+            'Remaining': self.remaining,
+            'Balance': self.balance,
+            'Usage': self.usage,
+            'RenewalDate': self.renewal_date,
+            'Hours': self.hours,
             'Date': today,
             'DateTime': DateTime,
-            'CreditTransaction': credit_transaction,
-            'RenewalStatus': renewal_status
+            'CreditTransaction': self.credit_transaction,
+            'RenewalStatus': self.renewal_status
             }
 
-        await SQLiteDB.insert_result('QuotaResult', result)
-        
-    @classmethod
-    async def logged(cls, browser, line: dict, QUOTATASK: TaskID):
+    @property
+    async def _compute_used_percentage(self) -> int:
         try:
-            browser.set_page_load_timeout(5)
-            browser.get("https://my.te.eg/user/login")  # Open WE Website
-            element_present = EC.presence_of_element_located(("id", "login-service-number-et"))
-            WebDriverWait(browser, 5).until(element_present)
-            browser.find_element("id", "login-service-number-et").send_keys(line['PortalUsername']) # Sending Username
-            await asyncio.sleep(.1)
-            browser.find_element("id", "login-password-et").send_keys(line['PortalPassword'])  # Sending Password
-            await asyncio.sleep(.1)
-            browser.find_element("id", "login-login-btn").click() # Click Login Button
-            element_present = EC.presence_of_element_located(("id", "welcome_card"))
-            WebDriverWait(browser, 7).until(element_present)
-            await asyncio.sleep(3)
-            return True
-        except:
-            browser.quit()
-            MYWE.faild.append(line)
-            WEProgressBar.stop_task(QUOTATASK)
-            return False
-
-    @classmethod
-    async def _renewal_date(cls, browser: SeleniumDriver):
-        """
-        Go to Overview Page
-        Get Renewal Date Value
-        Add to value to The DataBase
-        """
-        browser.get("https://my.te.eg/offering/overview")
-        await asyncio.sleep(3)
-        html = browser.page_source
-        soup = BeautifulSoup(html, 'html.parser')
-        return soup.find(class_='mr-auto').text[14:-19]
-      
-    @classmethod
-    async def _manipulate_parsered_data(cls, soup, element: ClassID, remove_text:str):
-        try:
-            item = soup.find(class_=element).text.replace(remove_text, '')
-            return int(float(item))
-        except:
-            return ''
-
-    @classmethod
-    async def _used_percentage(cls, used, remaining):
-        try:
-            used_perc = (int(used) / (int(used) + int(remaining)))*100
+            used_perc = (int(self.used) / (int(self.used) + int(self.remaining)))*100
             return int(used_perc)
         except:
-            return ''
+            return 0
 
-    @classmethod
-    async def _credit_transaction(cls, line: dict, balance: int):
+    @property
+    async def _compute_usage(self) -> int:
+        try:
+            last_used = await SQLiteDB.select_last_result(self.line, 'Used', 'QuotaResult')
+            if last_used:
+                last_datetime = await SQLiteDB.select_last_result(self.line, 'DateTime','QuotaResult')
+                last_datetime = datetime.strptime(last_datetime, "%d-%m-%Y %H:%M")
+                now = datetime.now()
+                diff = now - last_datetime
+                diff = int(diff.total_seconds() / 3600)
+                usage = int(self.used) - int(last_used)
+                if int(usage) > 0:
+                    return int(usage), int(diff)
+            return 0, 0
+        except Exception as ex:
+            print(ex)
+            return 0, 0
+
+    @property
+    async def _compute_credit_transaction(self) -> int:
         """
         Compare between current and last Balance to get the Credit Transaction Amount
         """
-        last_balance = await SQLiteDB.select_last_result(line, 'balance', 'QuotaResult')
+        last_balance = await SQLiteDB.select_last_result(self.line, 'balance', 'QuotaResult')
         if last_balance: # If last balance found
-            if balance != last_balance: # if there is a difference between balance and last balance
-                return (int(balance) - int(last_balance))
+            if self.balance != last_balance: # if there is a difference between balance and last balance
+                return (int(self.balance) - int(last_balance))
             else:
-                return ""
+                return 0
         else:
-            return ''
+            return 0
 
-    @classmethod
-    async def _renewal_status(cls, line: dict, credit_transaction: str):
-        if credit_transaction:
-            if credit_transaction < 0: 
-                last_renew_date = await SQLiteDB.select_last_result(line, 'RenewalDate','QuotaResult')
+    @property
+    async def _compute_renewal_status(self) -> str:
+        if self.credit_transaction:
+            if self.credit_transaction < 0: 
+                last_renew_date = await SQLiteDB.select_last_result(self.line, 'RenewalDate','QuotaResult')
                 if last_renew_date:
                     if last_renew_date == today:
                         return 'Automatic'
                     if last_renew_date != today:
                         return 'Manual'
             else:
-                return ''
+                return 0
         else:
-            return ''
+            return 0
 
-    @classmethod
-    async def _calculating_usage(cls, line: dict, used: int):
-        try:
-            last_used = await SQLiteDB.select_last_result(line, 'Used', 'QuotaResult')
-            if last_used:
-                start = await SQLiteDB.select_last_result(line, 'DateTime','QuotaResult')
-                start = datetime.strptime(start, "%d-%m-%Y %H:%M")
-                end =   datetime.strptime(DateTime, "%d-%m-%Y %H:%M")
-                diff = end - start
-                diff = int(diff.total_seconds() / 3600)
-                usage = int(used) - int(last_used)
-                if int(usage) > 0:
-                    return int(usage), int(diff)
-            return '', ''
-        except Exception as ex:
-            return '', ''
+MyWE = MyWeBaseClass()
+
+
+
+async def start(lines: list[dict]):
+    """
+    MyWe WebScraping Performing Function.
+    ---------------------------
+
+    Scraping Performing Based on Selenuim Using Chrome Browser for Login,
+    and Pages Parsing Using BeautifullSoup Library
+    """
+    _we_proc_lbl = Procs.add_task("[3] Start Internet Qouta Check")  # Create Process Task Label
+
+    for index, line in enumerate(lines):
+        index += 1
+        task_pb = WEProgressBar.add_task(f"{index}. {line['LineName']} QuotaCheck", total=4)
+        await MyWE.run_browser()
+        await MyWE.login(line)
+
+        if MyWE.logged:
+            WEProgressBar.update(task_pb, advance=1)
+            await MyWE.scrape_usage_page()
+            WEProgressBar.update(task_pb, advance=1)
+            await MyWE.srape_renewdate_page()
+            WEProgressBar.update(task_pb, advance=1)
+        resut = await MyWE.result
+        await SQLiteDB.insert_result('QuotaResult', resut)
+        WEProgressBar.update(task_pb, advance=1)
+
+        await MyWE.close_browser()
+        WEProgressBar.update(
+            task_id = task_pb, finished_time=True
+            )
+
+    
+    Procs.stop_task(_we_proc_lbl)
+    Procs.update(
+        _we_proc_lbl,
+        description = f"[green][3] Start Internet Qouta Check",
+        completed=True, finished_time=True)

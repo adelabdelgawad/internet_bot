@@ -66,12 +66,19 @@ def convert_result_to_html(result: list, indicators: dict) -> HTMLTable:
     used_percentage: str = add_symbol_to_result(result['UsedPercentage'], "%")
     used: str = add_symbol_to_result(result['Used'], "GB")
     remaining = add_symbol_to_result(result['Remaining'], "GB")
-    usage = add_symbol_to_result(result['Usage'], "GB")
+    usage = ''
     balance = add_symbol_to_result(result['Balance'], "LE")
     hours = ''
 
     if result['Hours']:
-        hours = f" in {result['Hours']} Hours"
+        if result['Hours'] == 0:
+            hours = " "
+        if result['Hours'] != 0:
+            hours = f" in {result['Hours']} Hours"
+
+    if result['Usage']:
+        if result['Usage'] > 0:
+            usage = add_symbol_to_result(result['Usage'], "GB")
 
     return f"""\
         <tr>

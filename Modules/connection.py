@@ -1,5 +1,6 @@
 import sqlite3
 import aiosqlite
+from  pathlib import Path
 import asyncio
 from datetime import timedelta
 from datetime import datetime
@@ -45,46 +46,55 @@ class DataBase:
         """
         Select Table using ARG: table_name
         """
-        conn = sqlite3.connect(self.db)
-        conn.row_factory = dict_factory
-        cursor = conn.execute(f"SELECT * FROM {table_name}").fetchall()
-        conn.close()
-        return cursor
+        try:
+            conn = sqlite3.connect(self.db)
+            conn.row_factory = dict_factory
+            cursor = conn.execute(f"SELECT * FROM {table_name}").fetchall()
+            conn.close()
+            return cursor
+        except:
+            return ''
       
     async def insert_result(self, table: TableName, kwargs: dict) -> None:
         """
         Insert Result to a Table
         """
-        db = await aiosqlite.connect(self.db)
-        await db.execute(f"""INSERT INTO {table} {tuple(kwargs.keys())} VALUES {tuple(kwargs.values())}""")
-        await db.commit()
-        await db.close()
-    
+        try:
+            db = await aiosqlite.connect(self.db)
+            await db.execute(f"""INSERT INTO {table} {tuple(kwargs.keys())} VALUES {tuple(kwargs.values())}""")
+            await db.commit()
+            await db.close()
+        except:
+            pass
+
     def select_current_result(self, line: dict) -> None:
         """
         Query Select last result from SPEEDTEST and QUOTA TABLE for the Desired Line
         """
-        conn = sqlite3.connect(self.db)
-        conn.row_factory = dict_factory
-        cursor = conn.execute(f"""SELECT 
-            Ping, Download, Upload,Used, UsedPercentage, Remaining,
-            Balance, Usage,RenewalDate, Hours, LineNumber, LineName,
-            LineDescription, LineISP
-            FROM SpeedTestResult
-                INNER JOIN (SELECT *
-                    FROM QuotaResult 
-                    WHERE QuotaResult.Date  = '{today}' 
-                    AND QuotaResult.LineID = {line['LineID']}
-                    ORDER BY QuotaResult.ID DESC 
-                    LIMIT(1)) AS QuotaResult		
-                        ON QuotaResult.LineID = SpeedTestResult.LineID
-                            INNER JOIN LinesData
-                                ON LinesData.LineID = SpeedTestResult.LineID
-                                WHERE SpeedTestResult.LineID = {line['LineID']}
-                                AND SpeedTestResult.Date = '{today}'
-                                ORDER BY SpeedTestResult.ID DESC LIMIT(1)""").fetchall()
-        conn.close()
-        return cursor[0]
+        try:
+            conn = sqlite3.connect(self.db)
+            conn.row_factory = dict_factory
+            cursor = conn.execute(f"""SELECT 
+                Ping, Download, Upload,Used, UsedPercentage, Remaining,
+                Balance, Usage,RenewalDate, Hours, LineNumber, LineName,
+                LineDescription, LineISP
+                FROM SpeedTestResult
+                    INNER JOIN (SELECT *
+                        FROM QuotaResult 
+                        WHERE QuotaResult.Date  = '{today}' 
+                        AND QuotaResult.LineID = {line['LineID']}
+                        ORDER BY QuotaResult.ID DESC 
+                        LIMIT(1)) AS QuotaResult		
+                            ON QuotaResult.LineID = SpeedTestResult.LineID
+                                INNER JOIN LinesData
+                                    ON LinesData.LineID = SpeedTestResult.LineID
+                                    WHERE SpeedTestResult.LineID = {line['LineID']}
+                                    AND SpeedTestResult.Date = '{today}'
+                                    ORDER BY SpeedTestResult.ID DESC LIMIT(1)""").fetchall()
+            conn.close()
+            return cursor[0]
+        except:
+            return ''
 
            
     async def select_last_result(self, line:dict , target: str, table: str) -> str:
@@ -101,7 +111,9 @@ class DataBase:
         except:
             return ''
 
-SQLiteDB = DataBase("data.sqlite3")
+DB_PATH = Path().resolve() / "data.sqlite3"
+
+SQLiteDB = DataBase(DB_PATH)
 MemoryDB = DataBase(":memory:")
 if __name__ == "__main__":
     pass
