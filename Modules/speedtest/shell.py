@@ -1,6 +1,6 @@
 import asyncio
 from rich import print
-from .connection import SQLiteDB
+from database.database import SQLiteDB
 
 
 class Shell:

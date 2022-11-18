@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 import asyncio
 import urllib3
 from typing import NewType
-from .connection import SQLiteDB
-from .progress import (
+from database.database import SQLiteDB
+from rich_modules.progress import (
     Procs,
     WEProgressBar
 )
@@ -17,9 +17,7 @@ from .progress import (
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 today = datetime.strftime(datetime.now() - timedelta(0), '%d-%m-%Y')
-now = datetime.now()
-DateTime = datetime.now().strftime("%d-%m-%Y %H:%M")
-now = now.strftime("%d-%m-%Y %H:%M")
+
 
 ClassID = NewType("ClassID", str)
 SeleniumDriver = NewType("SeleniumDriver", str)
@@ -150,7 +148,7 @@ class MyWeBaseClass():
             self.credit_transaction = ''
         if self.renewal_status == 0:
             self.renewal_status = ''
-            
+
         return {
             'LineID': self.line['LineID'],
             'Used': self.used,
@@ -161,7 +159,7 @@ class MyWeBaseClass():
             'RenewalDate': self.renewal_date,
             'Hours': self.hours,
             'Date': today,
-            'DateTime': DateTime,
+            'DateTime': datetime.now(),
             'CreditTransaction': self.credit_transaction,
             'RenewalStatus': self.renewal_status
             }
@@ -181,8 +179,7 @@ class MyWeBaseClass():
             if last_used:
                 last_datetime = await SQLiteDB.select_last_result(self.line, 'DateTime','QuotaResult')
                 last_datetime = datetime.strptime(last_datetime, "%d-%m-%Y %H:%M")
-                now = datetime.now()
-                diff = now - last_datetime
+                diff = datetime.now() - last_datetime
                 diff = int(diff.total_seconds() / 3600)
                 usage = int(self.used) - int(last_used)
                 if int(usage) > 0:
